@@ -26,10 +26,10 @@ The project will be developed using the following technologies:
 The development of a simulated traffic driver agent using a combination of imitation learning and reinforcement learning techniques is an exciting project that has the potential to revolutionize the way we think about transportation. By training virtual agents to navigate through a virtual city while obeying traffic laws and avoiding collisions, we can create safer, more efficient, and more sustainable transportation systems.
 
 
-Reinforcement_Learning
+Reinforcement Learning
 ==============================
 
-"Imitation Learning combined with Reinforcement Learning for the development of simulated traffic driver agents"
+Imitation Learning combined with Reinforcement Learning for the development of simulated traffic driver agents.
 
 Project Organization
 ------------
