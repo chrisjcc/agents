@@ -4,15 +4,15 @@ This project aims to develop a simulated traffic driver agent using a combinatio
 # Project Overview
 The project will be developed in several stages:
 
-Data Collection: Collect data from real-world drivers using cameras mounted on their vehicles. This data will be used to train an imitation learning model to mimic the behavior of human drivers.
+**Data Collection:** Collect data from real-world drivers using cameras mounted on their vehicles. This data will be used to train an imitation learning model to mimic the behavior of human drivers.
 
-Imitation Learning: Train an imitation learning model using the collected data. The model will learn to predict the actions of human drivers based on input data such as vehicle speed, position, and surrounding objects.
+**Imitation Learning:** Train an imitation learning model using the collected data. The model will learn to predict the actions of human drivers based on input data such as vehicle speed, position, and surrounding objects.
 
-Reinforcement Learning: Train a reinforcement learning model to navigate through a virtual city while obeying traffic laws and avoiding collisions. The model will be rewarded for following traffic laws, staying within speed limits, and avoiding collisions with other vehicles and pedestrians.
+**Reinforcement Learning:** Train a reinforcement learning model to navigate through a virtual city while obeying traffic laws and avoiding collisions. The model will be rewarded for following traffic laws, staying within speed limits, and avoiding collisions with other vehicles and pedestrians.
 
-Combination: Combine the imitation learning and reinforcement learning models to create a simulated traffic driver agent. The imitation learning model will provide the initial driving behavior, while the reinforcement learning model will improve the behavior based on feedback from the virtual environment.
+**Combination:** Combine the imitation learning and reinforcement learning models to create a simulated traffic driver agent. The imitation learning model will provide the initial driving behavior, while the reinforcement learning model will improve the behavior based on feedback from the virtual environment.
 
-Evaluation: Evaluate the performance of the simulated traffic driver agent in various scenarios, including different weather conditions and traffic densities.
+**Evaluation:** Evaluate the performance of the simulated traffic driver agent in various scenarios, including different weather conditions and traffic densities.
 
 # Technologies Used
 The project will be developed using the following technologies:
