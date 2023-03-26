@@ -83,9 +83,17 @@ dependencies:
   - pip:
     - absl-py==1.4.0
     - ale-py==0.8.1
+    - arrow==1.2.3
+    - attrs==22.2.0
+    - autoflake==2.0.2
+    - binaryornot==0.4.4
+    - black==23.1.0
     - box2d-py==2.3.5
+    - chardet==5.1.0
+    - click==8.1.3
     - cloudpickle==2.2.1
     - contourpy==1.0.7
+    - cookiecutter==2.1.1
     - cycler==0.11.0
     - cython==0.29.33
     - decorator==4.4.2
@@ -96,28 +104,48 @@ dependencies:
     - gymnasium==0.28.1
     - imageio==2.26.1
     - imageio-ffmpeg==0.4.8
+    - importlab==0.8
     - importlib-metadata==6.1.0
     - importlib-resources==5.12.0
+    - isort==5.12.0
     - jax==0.3.24
     - jax-jumpy==1.0.0
     - jaxlib==0.3.24
+    - jinja2-time==0.2.0
     - kiwisolver==1.4.4
+    - libcst==0.4.9
     - lz4==4.3.2
     - matplotlib==3.7.1
     - moviepy==1.0.3
     - mujoco==2.3.3
     - mujoco-py==2.1.2.14
+    - mypy==1.1.1
+    - mypy-extensions==1.0.0
+    - networkx==2.8.3
+    - ninja==1.11.1
     - opencv-python==4.7.0.72
     - opt-einsum==3.3.0
     - packaging==23.0
+    - pathspec==0.11.1
+    - platformdirs==3.2.0
     - proglog==0.1.10
+    - pydot==1.4.2
+    - pyflakes==3.0.1
     - pygame==2.1.3
     - pyopengl==3.1.6
     - pyparsing==3.0.9
     - python-dateutil==2.8.2
+    - python-slugify==8.0.1
+    - pytype==2023.3.13
+    - pyyaml==6.0
     - scipy==1.10.1
     - shimmy==0.2.1
     - swig==4.1.1
+    - tabulate==0.9.0
+    - text-unidecode==1.3
+    - toml==0.10.2
+    - tomli==2.0.1
     - tqdm==4.65.0
+    - typing-inspect==0.8.0
     - zipp==3.15.0
 prefix: /Users/chrisjcc/opt/anaconda3/envs/agents
