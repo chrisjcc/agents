@@ -1,5 +1,5 @@
 # Importing necessary libraries
-from typing import Tuple
+from typing import Any, Tuple
 
 import numpy as np
 import torch
@@ -82,21 +82,24 @@ class Actor(nn.Module):
 
 
 if __name__ == "__main__":
+    """CarRacing-v2 Gym environment"""
     import gymnasium as gym
 
     # Setup device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    env_name = "CarRacing-v2"
-    # Passing continuous=True converts the environment to use continuous action space
+    # Define the environment
+    # Passing continuous=True converts the environment to use continuous action$
     # The continuous action space has 3 actions: [steering, gas, brake].
-    env = gym.make(
+    env_name: str = "CarRacing-v2"
+    env: gym.Env[Any, Any] = gym.make(
         env_name,
         domain_randomize=True,
         continuous=True,
         render_mode="human",
     )
 
+    # Get state spaces
     state, info = env.reset()
 
     # We first check if state_shape is None. If it is None, we raise a ValueError with an appropriate error message.
@@ -107,6 +110,7 @@ if __name__ == "__main__":
         raise ValueError("Observation space shape is None.")
     state_dim = int(state_shape[0])
 
+    # Get action spaces
     action_space = env.action_space
     if isinstance(action_space, gym.spaces.Box):
         action_high = action_space.high
@@ -130,7 +134,7 @@ if __name__ == "__main__":
     low = torch.from_numpy(action_space.low)
     high = torch.from_numpy(action_space.high)
 
-    # Actor policy
+    # Initialize Actor policy
     actor = Actor(state_dim, action_dim, max_action).to(device)
 
     total_reward = 0.0
@@ -152,7 +156,7 @@ if __name__ == "__main__":
             # Clip the rescaledaction to ensure it falls within the bounds of the action space
             clipped_action = torch.clamp(rescaled_action, low, high)
 
-        # Convert the clipped action back to a tensor
+        # Convert from numpy to torch tensors, and send to device
         action = clipped_action.squeeze().cpu().detach().numpy()
 
         next_state, reward, terminated, truncated, info = env.step(action)
