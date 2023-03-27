@@ -82,4 +82,9 @@ Project Organization
 
 --------
 
+# Setup Conda Environment
+```
+conda env create -f environment.yml
+```
+
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
