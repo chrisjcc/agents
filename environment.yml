@@ -96,6 +96,7 @@ dependencies:
       - fonttools==4.39.2
       - glfw==2.5.7
       - gymnasium==0.28.1
+      - highway-env==1.8.1
       - imageio==2.27.0
       - imageio-ffmpeg==0.4.8
       - importlab==0.8
@@ -120,6 +121,7 @@ dependencies:
       - opencv-python==4.7.0.72
       - opt-einsum==3.3.0
       - packaging==23.0
+      - pandas==1.5.3
       - pathspec==0.11.1
       - platformdirs==3.2.0
       - proglog==0.1.10
@@ -130,6 +132,7 @@ dependencies:
       - pyparsing==3.0.9
       - python-dateutil==2.8.2
       - pytype==2023.3.13
+      - pytz==2023.2
       - pyyaml==6.0
       - scipy==1.10.1
       - shimmy==0.2.1
