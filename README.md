@@ -82,7 +82,7 @@ Project Organization
 
 --------
 
-# Setup Conda Environment
+## Setup Conda Environment
 ```
 conda env create -f environment.yml
 ```
