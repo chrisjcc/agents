@@ -89,7 +89,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Define the environment
-    # Passing continuous=True converts the environment to use continuous action$
+    # Passing continuous=True converts the environment to use continuous action.
     # The continuous action space has 3 actions: [steering, gas, brake].
     env_name: str = "CarRacing-v2"
     env: gym.Env[Any, Any] = gym.make(
