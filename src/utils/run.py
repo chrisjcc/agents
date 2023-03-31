@@ -111,7 +111,7 @@ if __name__ == "__main__":
             action_distribution = Normal(loc=action_mean, scale=action_std)  # type: ignore
             action = action_distribution.sample()  # type: ignore
 
-            # Rescale the action to the range of teh action space
+            # Rescale the action to the range of the action space
             rescaled_action = ((action + 1) / 2) * (
                 action_space.high - action_space.low
             ) + action_space.low
