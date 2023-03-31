@@ -33,7 +33,6 @@ class Actor(nn.Module):
         """
 
         super(Actor, self).__init__()
-        self.state_dim = state_dim
         # Convolutional layers to extract features from the state's image
         self.conv1 = nn.Conv2d(state_dim, 32, kernel_size=3, stride=2, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)
@@ -123,16 +122,9 @@ if __name__ == "__main__":
     action_dim = int(action_shape[0])
     max_action = int(action_high[0])
 
-    # Define the action space range
-    action_space = gym.spaces.Box(
-        low=np.array([-1.0, -0.0, 0.0], dtype=np.float32),
-        high=np.array([+1.0, +1.0, +1.0], dtype=np.float32),
-        dtype=np.float32,
-    )
-
-    # Convert action_space low and high values to Tensors
-    low = torch.from_numpy(action_space.low)
-    high = torch.from_numpy(action_space.high)
+    # Convert action space range of low and high values to Tensors
+    action_space_low = torch.from_numpy(np.array([-1.0, -0.0, 0.0], dtype=np.float32))
+    action_space_high = torch.from_numpy(np.array([+1.0, +1.0, +1.0], dtype=np.float32))
 
     # Initialize Actor policy
     actor = Actor(state_dim, action_dim, max_action).to(device)
@@ -150,11 +142,11 @@ if __name__ == "__main__":
 
             # Rescale the action to the range of teh action space
             rescaled_action = ((action + 1) / 2) * (
-                action_space.high - action_space.low
-            ) + action_space.low
+                action_space_high - action_space_low
+            ) + action_space_low
 
             # Clip the rescaledaction to ensure it falls within the bounds of the action space
-            clipped_action = torch.clamp(rescaled_action, low, high)
+            clipped_action = torch.clamp(rescaled_action, action_space_low, action_space_high)
 
         # Convert from numpy to torch tensors, and send to device
         action = clipped_action.squeeze().cpu().detach().numpy()
