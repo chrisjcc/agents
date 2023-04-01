@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.distributions import Categorical
 
 # Set random seed for reproducibility
 seed = 42
@@ -32,7 +33,7 @@ class Actor(nn.Module):
         x = F.softmax(x, dim=-1)
 
         return x
-
+        
 
 # Define the Critic network
 class Critic(nn.Module):
@@ -99,6 +100,7 @@ class ActorCriticAgent:
         """
         self.actor_critic = ActorCritic(state_dim, action_dim, hidden_dim)
         self.optimizer = optim.Adam(self.actor_critic.parameters(), lr=lr)
+
         # Define the learning rate scheduler
         self.lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer, 
@@ -119,7 +121,7 @@ class ActorCriticAgent:
         if torch.cuda.is_available():
             torch.cuda.manual_seed(self.seed)
 
-    def sample_action(self, state: torch.Tensor) -> int:
+    def sample_action(self, state: torch.Tensor) -> torch.Tensor:
         """
         Compute the stochastic policy given a state.
 
@@ -127,18 +129,19 @@ class ActorCriticAgent:
         :return: The selected action.
         """
         action_probs, _ = self.actor_critic(state)
-        action_probs = action_probs.detach().numpy()[0]
-        action = np.random.choice(len(action_probs), p=action_probs)
+        action_distribution = Categorical(action_probs)
+        action = action_distribution.sample()
 
         return action
+
 
     def update(
         self,
         state: torch.Tensor,
-        action: int,
-        reward: float,
+        action: torch.Tensor,
+        reward: torch.Tensor,
         next_state: torch.Tensor,
-        done: bool,
+        done: torch.Tensor,
     ) -> None:
         """
         Update the actor and critic neural networks given a new experience.
@@ -164,8 +167,11 @@ class ActorCriticAgent:
         self.optimizer.step()
 
         # Update the scheduler after every step
-        self.lr_scheduler.step(loss)
+        self.lr_scheduler.step(loss.item())
 
+        # Check if the learning rate has been reduced
+        # TODO: does not appear to be going down!
+        #print("Learning rate:", self.optimizer.param_groups[0]['lr'])
 
 # Trainer class to train the Agent
 class Trainer:
@@ -179,7 +185,8 @@ class Trainer:
         agent: ActorCriticAgent,
         max_episodes: int,
         max_steps: int,
-        checkpoint_dir: str,
+        checkpoint_path: str="model_checkpoints",
+        checkpoint_freq: int = 100,
     ):
         """
         Initializes the Trainer.
@@ -188,18 +195,15 @@ class Trainer:
         :param agent: The actor-critic agent.
         :param max_episodes: The maximum number of episodes to train for.
         :param max_steps: The maximum number of steps per episode.
+        :param checkpoint_path: The directory to save the agent's model in.
+        :param checkpoint_freq: The frequency (in episodes) at which to save the agent's model.
         """
         self.env = env
         self.agent = agent
         self.max_episodes = max_episodes
         self.max_steps = max_steps
-        self.checkpoint_dir = checkpoint_dir
-        self.checkpoint = {
-            "actor_critic_state_dict": Dict[str, Any],
-            "optimizer_state_dict": Dict[str, Any],
-            "episode": 0,
-            "reward": 0,
-        }
+        self.checkpoint_path = checkpoint_path
+        self.checkpoint_freq = checkpoint_freq
 
     def train_step(
         self, state: torch.Tensor
@@ -211,7 +215,7 @@ class Trainer:
         :return: The next state, reward, and whether the episode is done.
         """
         action = self.agent.sample_action(state)
-        next_state, reward, terminated, truncated, info = self.env.step(action)
+        next_state, reward, terminated, truncated, info = self.env.step(action.item())
 
         next_state = torch.FloatTensor(next_state).unsqueeze(0)
         reward = torch.FloatTensor([reward]).unsqueeze(0)
@@ -244,33 +248,32 @@ class Trainer:
             episode_rewards.append(episode_reward)
             print(f"Episode {episode}: reward = {episode_reward}")
 
-            # Check if the learning rate has been reduced
-            lr = self.agent.optimizer.param_groups[0]['lr'] # TODO: does not appear to be going down!
-            #print(f"Learning rate for episode {episode}: {lr}")
-
             # Save model checkpoint after each 10 episode
-            if episode % 10 == 0:
-                self.save_checkpoint(episode, episode_reward)
+            if episode % self.checkpoint_freq == 0:
+                self.save_checkpoint(self.checkpoint_path, episode, episode_reward)
 
             # Save last episode model
-            self.save_checkpoint(self.max_episodes, episode_reward)
+            self.save_checkpoint(self.checkpoint_path, self.max_episodes, episode_reward)
 
         return episode_rewards
 
-    def save_checkpoint(self, episode_num: int, episode_reward: int) -> None:
+    def save_checkpoint(self, checkpoint_path: str, episode_num: int, episode_reward: int) -> None:
         """
         Save the current state of the agent to a file.
 
+        :param checkpoint_path: path to checkpoint directory
         :param episode_num: The current episode number.
+        :param episode_reward: The current episode reward.
         """
-        checkpoint_path = os.path.join(self.checkpoint_dir, f"checkpoint_{episode_num}.pth")
-
-        self.checkpoint["actor_critic_state_dict"] = self.agent.actor_critic.state_dict()
-        self.checkpoint["optimizer_state_dict"] = self.agent.optimizer.state_dict()
-        self.checkpoint["episode"] = episode_num
-        self.checkpoint["reward"] = episode_reward
-
-        torch.save(self.checkpoint, checkpoint_path)
+        checkpoint = {
+            "actor_critic_state_dict": self.agent.actor_critic.state_dict(),
+            "optimizer_state_dict": self.agent.optimizer.state_dict(),
+            "episode": episode_num,
+            "reward": episode_reward,
+        }
+        os.makedirs(checkpoint_path, exist_ok=True)
+        fpath = os.path.join(checkpoint_path, f"checkpoint_{episode_num}.pth")
+        torch.save(checkpoint, fpath)
 
 
 if __name__ == "__main__":
@@ -302,9 +305,9 @@ if __name__ == "__main__":
     trainer = Trainer(
         env,
         agent,
-        max_episodes=100,
+        max_episodes=300,
         max_steps=200,
-        checkpoint_dir=checkpoint_dir,
+        checkpoint_path=checkpoint_dir,
     )
 
     episode_rewards = trainer.train()
