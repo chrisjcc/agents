@@ -1,6 +1,6 @@
 # Import libraries
 import os
-from typing import Any, Dict, List, Tuple
+from typing import Any, List, Tuple
 
 import gymnasium as gym
 import numpy as np
@@ -21,19 +21,25 @@ class Actor(nn.Module):
     The Actor class defines a neural network that maps state to actions.
     """
 
-    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int):
+    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int) -> None:
         super(Actor, self).__init__()
         self.actor_linear1 = nn.Linear(state_dim, hidden_dim)
         self.actor_linear2 = nn.Linear(hidden_dim, action_dim)
 
     def forward(self, state: torch.Tensor) -> torch.Tensor:
+        """
+        Return the actor network predictions, given a state tensor.
+
+        :param state: A pytorch tensor representing the current state.
+        :return: Pytorch tensor representing the actor network predictions.
+        """
         x = self.actor_linear1(state)
         x = F.relu(x)
         x = self.actor_linear2(x)
         x = F.softmax(x, dim=-1)
 
         return x
-        
+
 
 # Define the Critic network
 class Critic(nn.Module):
@@ -41,12 +47,18 @@ class Critic(nn.Module):
     The Critic class defines a neural network that estimates the value function.
     """
 
-    def __init__(self, state_dim: int, hidden_dim: int):
+    def __init__(self, state_dim: int, hidden_dim: int) -> None:
         super(Critic, self).__init__()
         self.critic_linear1 = nn.Linear(state_dim, hidden_dim)
         self.critic_linear2 = nn.Linear(hidden_dim, 1)
 
     def forward(self, state: torch.Tensor) -> torch.Tensor:
+        """
+        Return the critic network predictions, given a state tensor.
+
+        :param state: A pytorch tensor representing the current state.
+        :return: Pytorch tensor representing the critic network predictions.
+        """
         x = self.critic_linear1(state)
         x = F.relu(x)
         x = self.critic_linear2(x)
@@ -61,12 +73,18 @@ class ActorCritic(nn.Module):
     It consists of an Actor and a Critic neural network.
     """
 
-    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int):
+    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int) -> None:
         super(ActorCritic, self).__init__()
         self.actor = Actor(state_dim, action_dim, hidden_dim)
         self.critic = Critic(state_dim, hidden_dim)
 
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Return predictions from the  Actor and Critic networks, given a state tensor.
+
+        :param state: A pytorch tensor representing the current state.
+        :return: Pytorch Tensor representing the Actor network predictions and the Critic network predictions.
+        """
         action_probs = self.actor(state)
         state_value = self.critic(state)
 
@@ -87,7 +105,7 @@ class ActorCriticAgent:
         lr: float,
         gamma: float,
         seed: int = 42,
-    ):
+    ) -> None:
         """
         Initializes the ActorCriticAgent.
 
@@ -103,12 +121,8 @@ class ActorCriticAgent:
 
         # Define the learning rate scheduler
         self.lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, 
-            mode="min",
-            factor=0.1,
-            threshold=1e-4,
-            patience=5
-            )
+            self.optimizer, mode="min", factor=0.1, threshold=1e-4, patience=5
+        )
 
         self.gamma = gamma
         self.seed = seed
@@ -117,6 +131,9 @@ class ActorCriticAgent:
         self.set_seed()
 
     def set_seed(self) -> None:
+        """
+        Set the seed value for generating random numbers within the environment.
+        """
         torch.manual_seed(self.seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed(self.seed)
@@ -133,7 +150,6 @@ class ActorCriticAgent:
         action = action_distribution.sample()
 
         return action
-
 
     def update(
         self,
@@ -171,7 +187,8 @@ class ActorCriticAgent:
 
         # Check if the learning rate has been reduced
         # TODO: does not appear to be going down!
-        #print("Learning rate:", self.optimizer.param_groups[0]['lr'])
+        # print("Learning rate:", self.optimizer.param_groups[0]['lr'])
+
 
 # Trainer class to train the Agent
 class Trainer:
@@ -185,7 +202,7 @@ class Trainer:
         agent: ActorCriticAgent,
         max_episodes: int,
         max_steps: int,
-        checkpoint_path: str="model_checkpoints",
+        checkpoint_path: str = "model_checkpoints",
         checkpoint_freq: int = 100,
     ):
         """
@@ -253,11 +270,18 @@ class Trainer:
                 self.save_checkpoint(self.checkpoint_path, episode, episode_reward)
 
             # Save last episode model
-            self.save_checkpoint(self.checkpoint_path, self.max_episodes, episode_reward)
+            self.save_checkpoint(
+                self.checkpoint_path, self.max_episodes, episode_reward
+            )
 
         return episode_rewards
 
-    def save_checkpoint(self, checkpoint_path: str, episode_num: int, episode_reward: int) -> None:
+    def save_checkpoint(
+        self,
+        checkpoint_path: str,
+        episode_num: int,
+        episode_reward: int,
+    ) -> None:
         """
         Save the current state of the agent to a file.
 
@@ -283,7 +307,7 @@ if __name__ == "__main__":
 
     # Source: https://gymnasium.farama.org/environments/classic_control/cart_pole/
     env_name = "CartPole-v1"
-    env = gym.make(env_name, render_mode="rgb_array") # "human"
+    env = gym.make(env_name, render_mode="human")  # "rgb_array"
 
     # Action Space: Discrete(2)
     # Observation Space: Box([-4.8000002e+00 -3.4028235e+38 -4.1887903e-01 -3.4028235e+38],
