@@ -39,13 +39,27 @@ class Actor(nn.Module):
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
 
         # Fully connected layers for policy approximation
-        self.fc1 = nn.Linear(1536, hidden_dim)  # (128 * 11 * 11, ...)
+        self.fc_input_dims = self.calculate_conv_output_dims(
+            (state_dim, state_dim, action_dim)
+        )
+        self.fc1 = nn.Linear(self.fc_input_dims, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
 
         self.mean_fc = nn.Linear(hidden_dim, action_dim)
         self.std_fc = nn.Linear(hidden_dim, action_dim)
 
         self.max_action = max_action
+
+    def calculate_conv_output_dims(
+        self,
+        input_dims: Tuple[int, int, int],
+    ) -> int:
+        state = torch.zeros(1, *input_dims)
+        dims = self.conv1(state)
+        dims = self.conv2(dims)
+        dims = self.conv3(dims)
+
+        return int(torch.prod(torch.tensor(dims.size())))
 
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -64,14 +78,13 @@ class Actor(nn.Module):
         x = F.relu(self.conv3(x))
 
         # Flatten the 3D features tensor to make it suitable for feed-forward layers
-        x = x.reshape(-1, 1536)  # 128 * 11 * 11
+        x = x.reshape(x.size(0), -1)
 
         # Propagate through the dense layers
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
 
         # Predict the mean of the normal distribution for selecting an action
-        # mean = self.max_action * F.softmax(self.mean_fc(x), dim=-1)
         mean = self.max_action * torch.tanh(self.mean_fc(x))
 
         # Predict the standard deviation of the normal distribution for selecting an action
@@ -98,13 +111,11 @@ if __name__ == "__main__":
         render_mode="human",
     )
 
-    # Get state spaces
-    state, info = env.reset()
-
     # We first check if state_shape is None. If it is None, we raise a ValueError with an appropriate error message.
     # Otherwise, we access the first element of state_shape using its index and convert it to an integer
     # using the int() function.
     state_shape = env.observation_space.shape
+
     if state_shape is None:
         raise ValueError("Observation space shape is None.")
     state_dim = int(state_shape[0])
@@ -129,6 +140,9 @@ if __name__ == "__main__":
     # Initialize Actor policy
     actor = Actor(state_dim, action_dim, max_action).to(device)
 
+    # Get state spaces
+    state, info = env.reset()
+
     total_reward = 0.0
     while True:
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
@@ -146,7 +160,9 @@ if __name__ == "__main__":
             ) + action_space_low
 
             # Clip the rescaledaction to ensure it falls within the bounds of the action space
-            clipped_action = torch.clamp(rescaled_action, action_space_low, action_space_high)
+            clipped_action = torch.clamp(
+                rescaled_action, action_space_low, action_space_high
+            )
 
         # Convert from numpy to torch tensors, and send to device
         action = clipped_action.squeeze().cpu().detach().numpy()
