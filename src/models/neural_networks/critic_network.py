@@ -1,5 +1,5 @@
 # Importing necessary libraries
-from typing import Any
+from typing import Any, Tuple
 
 import numpy as np
 import torch
@@ -14,9 +14,24 @@ class Critic(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
 
+        # Fully connected layers for policy approximation
+        self.fc_input_dims = self.calculate_conv_output_dims(
+            (state_dim, state_dim, action_dim)
+        )
         self.fc1 = nn.Linear(action_dim, hidden_dim)
-        self.fc2 = nn.Linear(1792, hidden_dim)  # 128 * 11 * 11 + hidden_dim
+        self.fc2 = nn.Linear(self.fc_input_dims + hidden_dim, hidden_dim)
         self.fc3 = nn.Linear(hidden_dim, 1)
+
+    def calculate_conv_output_dims(
+        self,
+        input_dims: Tuple[int, int, int],
+    ) -> int:
+        state = torch.zeros(1, *input_dims)
+        dims = self.conv1(state)
+        dims = self.conv2(dims)
+        dims = self.conv3(dims)
+
+        return int(torch.prod(torch.tensor(dims.size())))
 
     def forward(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
         """
@@ -34,7 +49,7 @@ class Critic(nn.Module):
         action = action.view(-1, action.size(-1))  # reshape to (batch_size, action_dim)
         action = F.relu(self.fc1(action))  # apply linear layer to action
 
-        x = x.view(-1, 1536)  # 128 * 11 * 11
+        x = x.reshape(-1, x.size(0) * x.size(1))
         x = torch.cat([x, action], dim=1)  # concatenate action and feature tensors
 
         x = F.relu(self.fc2(x))
@@ -72,13 +87,11 @@ if __name__ == "__main__":
         render_mode="human",
     )
 
-    # Get state spaces
-    state, info = env.reset()
-
     # We first check if state_shape is None. If it is None, we raise a ValueError.
     # Otherwise, we access the first element of state_shape using its index and
     # using the int() function.
     state_shape = env.observation_space.shape
+
     if state_shape is None:
         raise ValueError("Observation space shape is None.")
     state_dim = int(state_shape[0])
@@ -96,6 +109,9 @@ if __name__ == "__main__":
     action_dim = int(action_shape[0])
     max_action = int(action_high[0])
     action = env.action_space.sample()
+
+    # Get state spaces
+    state, info = env.reset()
 
     # Convert from numpy to torch tensors, and send to device
     state = torch.from_numpy(state.astype(np.float32)).to(device)
