@@ -49,7 +49,9 @@ class Critic(nn.Module):
         action = action.view(-1, action.size(-1))  # reshape to (batch_size, action_dim)
         action = F.relu(self.fc1(action))  # apply linear layer to action
 
-        x = x.reshape(-1, x.size(0) * x.size(1))
+        # Flatten tensor
+        x = x.reshape(x.size(0), -1)
+
         x = torch.cat([x, action], dim=1)  # concatenate action and feature tensors
 
         x = F.relu(self.fc2(x))
@@ -115,11 +117,13 @@ if __name__ == "__main__":
     state, info = env.reset()
 
     # Convert from numpy to torch tensors, and send to device
-    state = torch.from_numpy(state.astype(np.float32)).to(device)
-    action = torch.from_numpy(action.astype(np.float32)).to(device)
+    state = torch.FloatTensor(state).unsqueeze(0).to(device)
+    action = torch.FloatTensor(action).unsqueeze(0).to(device)
 
-    # Initialize Critic and evaluate Q-value of random state-action pair
+    # Initialize Critic
     critic = Critic(state_dim=state_dim, action_dim=action_dim).to(device)
-    value = critic.evaluate(state, action)
 
-    print(f"Q-value: {value.item()}")
+    # Evaluate Q-value of random state-action pair
+    q_value = critic.evaluate(state, action)
+
+    print(f"Q-value: {q_value.item()}")
