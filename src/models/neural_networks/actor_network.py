@@ -20,7 +20,11 @@ class Actor(nn.Module):
     """
 
     def __init__(
-        self, state_dim: int, action_dim: int, max_action: float, hidden_dim: int = 256,
+        self,
+        state_dim: int,
+        action_dim: int,
+        max_action: float,
+        hidden_dim: int = 256,
     ) -> None:
         """
         Initializes the Actor network architecture.
@@ -158,7 +162,9 @@ if __name__ == "__main__":
 
             # Clip the rescaledaction to ensure it falls within the bounds of the action space
             clipped_action = torch.clamp(
-                rescaled_action, torch.from_numpy(action_space.low), torch.from_numpy(action_space.high)
+                rescaled_action,
+                torch.from_numpy(action_space.low),
+                torch.from_numpy(action_space.high),
             )
 
         # Convert from numpy to torch tensors, and send to device
