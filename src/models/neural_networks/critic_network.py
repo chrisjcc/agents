@@ -98,6 +98,7 @@ if __name__ == "__main__":
 
     # Get action spaces
     action_space = env.action_space
+
     if isinstance(action_space, gym.spaces.Box):
         action_high = action_space.high
         action_shape = action_space.shape
