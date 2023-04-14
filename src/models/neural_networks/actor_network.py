@@ -20,7 +20,7 @@ class Actor(nn.Module):
     """
 
     def __init__(
-        self, state_dim: int, action_dim: int, max_action: float, hidden_dim: int = 256
+        self, state_dim: int, action_dim: int, max_action: float, hidden_dim: int = 256,
     ) -> None:
         """
         Initializes the Actor network architecture.
@@ -122,6 +122,7 @@ if __name__ == "__main__":
 
     # Get action spaces
     action_space = env.action_space
+
     if isinstance(action_space, gym.spaces.Box):
         action_high = action_space.high
         action_shape = action_space.shape
@@ -133,35 +134,31 @@ if __name__ == "__main__":
     action_dim = int(action_shape[0])
     max_action = int(action_high[0])
 
-    # Convert action space range of low and high values to Tensors
-    action_space_low = torch.from_numpy(np.array([-1.0, -0.0, 0.0], dtype=np.float32))
-    action_space_high = torch.from_numpy(np.array([+1.0, +1.0, +1.0], dtype=np.float32))
-
     # Initialize Actor policy
     actor = Actor(state_dim, action_dim, max_action).to(device)
 
     # Get state spaces
     state, info = env.reset()
+    state_tensor = torch.FloatTensor(state).unsqueeze(0).to(device)
 
     total_reward = 0.0
     while True:
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         with torch.no_grad():
-            state_tensor = torch.FloatTensor(state).unsqueeze(0).to(device)
             action_mean, action_std = actor(state_tensor)
 
             # Select action by subsampling from action space distribution
             action_distribution = Normal(loc=action_mean, scale=action_std)  # type: ignore
-            action = action_distribution.sample()  # type: ignore
+            action_tensor = action_distribution.sample()  # type: ignore
 
             # Rescale the action to the range of teh action space
-            rescaled_action = ((action + 1) / 2) * (
-                action_space_high - action_space_low
-            ) + action_space_low
+            rescaled_action = ((action_tensor + 1) / 2) * (
+                action_space.high - action_space.low
+            ) + action_space.low
 
             # Clip the rescaledaction to ensure it falls within the bounds of the action space
             clipped_action = torch.clamp(
-                rescaled_action, action_space_low, action_space_high
+                rescaled_action, torch.from_numpy(action_space.low), torch.from_numpy(action_space.high)
             )
 
         # Convert from numpy to torch tensors, and send to device
