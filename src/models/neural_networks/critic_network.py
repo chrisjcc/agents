@@ -8,7 +8,12 @@ import torch.nn.functional as F
 
 
 class Critic(nn.Module):
-    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int = 256):
+    def __init__(
+        self,
+        state_dim: int,
+        action_dim: int,
+        hidden_dim: int = 256,
+    ):
         super(Critic, self).__init__()
         self.conv1 = nn.Conv2d(state_dim, 32, kernel_size=3, stride=2, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)
@@ -18,9 +23,9 @@ class Critic(nn.Module):
         self.fc_input_dims = self.calculate_conv_output_dims(
             (state_dim, state_dim, action_dim)
         )
-        self.fc1 = nn.Linear(action_dim, hidden_dim)
-        self.fc2 = nn.Linear(self.fc_input_dims + hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, 1)
+        self.fc1 = nn.Linear(action_dim, hidden_dim)  # for critic
+        self.fc2 = nn.Linear(self.fc_input_dims + hidden_dim, hidden_dim)  # for Q-value
+        self.fc3 = nn.Linear(hidden_dim, 1)  # for critic
 
     def calculate_conv_output_dims(
         self,
@@ -42,15 +47,17 @@ class Critic(nn.Module):
         Returns:
         - A tensor of shape (batch_size,) containing the Q-value of the input state-action pair.
         """
+        # Extract features from the state's image
         x = F.relu(self.conv1(state))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
 
+        # Flatten the 3D features tensor to make it suitable for feed-forward layers
+        x = x.reshape(x.size(0), -1)
+
+        # torch.Size([1, 1, 96, 96, 3])
         action = action.view(-1, action.size(-1))  # reshape to (batch_size, action_dim)
         action = F.relu(self.fc1(action))  # apply linear layer to action
-
-        # Flatten tensor
-        x = x.reshape(x.size(0), -1)
 
         x = torch.cat([x, action], dim=1)  # concatenate action and feature tensors
 
@@ -111,19 +118,34 @@ if __name__ == "__main__":
 
     action_dim = int(action_shape[0])
     max_action = int(action_high[0])
-    action = env.action_space.sample()
-
-    # Get state spaces
-    state, info = env.reset()
-
-    # Convert from numpy to torch tensors, and send to device
-    state = torch.FloatTensor(state).unsqueeze(0).to(device)
-    action = torch.FloatTensor(action).unsqueeze(0).to(device)
 
     # Initialize Critic
     critic = Critic(state_dim=state_dim, action_dim=action_dim).to(device)
 
-    # Evaluate Q-value of random state-action pair
-    q_value = critic.evaluate(state, action)
+    # Get state spaces
+    state, info = env.reset()
+    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
 
-    print(f"Q-value: {q_value.item()}")
+    # This loop constitutes one epoch
+    while True:
+        # Sample random action
+        action = env.action_space.sample()
+
+        # Convert from numpy to torch tensors, and send to device
+        action_tensor = torch.tensor(action, dtype=torch.float32).unsqueeze(0).to(device)
+
+        # Evaluate Q-value of random state-action pair
+        q_value = critic.evaluate(state_tensor, action_tensor)
+        print(f"Q-value: {q_value.item():.3f}")
+
+        # Take a step in the environment given sampled action
+        next_state, reward, terminated, truncated, info = env.step(action)
+
+        state_tensor = (
+            torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(device)
+        )
+
+        # Update if the environment is done
+        done = terminated or truncated
+        if done:
+            break
