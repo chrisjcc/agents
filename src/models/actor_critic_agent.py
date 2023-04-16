@@ -77,6 +77,7 @@ class ActorCriticAgent:
         next_action: torch.Tensor,
         terminated: torch.Tensor,
         action_distribution: Any,
+        next_action_distribution: Any
     ) -> None:
         """
         Updates the ActorCriticAgent.
@@ -250,6 +251,7 @@ if __name__ == "__main__":
             next_state_tensor,
             clipped_next_action,
             terminated_tensor,
+            action_distribution,
             next_action_distribution,
         )
 
