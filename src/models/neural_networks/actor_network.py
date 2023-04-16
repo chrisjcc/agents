@@ -8,7 +8,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical, Normal
 
-
 # Setting the seed for reproducibility
 torch.manual_seed(0)
 
@@ -24,7 +23,7 @@ class Actor(nn.Module):
         self,
         state_dim: int,
         action_dim: int,
-        max_action: float,
+        max_action: int,
         hidden_dim: int = 256,
     ) -> None:
         """
@@ -33,7 +32,7 @@ class Actor(nn.Module):
         Args:
             state_dim (int): Dimension of the state space.
             action_dim (int): Dimension of the action space.
-            max_action (float): Maximum value of the action space.
+            max_action (int): Maximum value of the action space.
             hidden_dim (int): Size of the hidden layers. Default is 256.
         """
 
@@ -133,7 +132,7 @@ if __name__ == "__main__":
         action_shape = action_space.shape
     else:
         raise ValueError("Action space is not of type Box.")
-    
+
     # There are certain gym environments where action_shape is None. In such cases, we set
     # action_dim and max_action to None and use action_high directly.
     action_dim, max_action = None, None
@@ -152,7 +151,7 @@ if __name__ == "__main__":
     state, info = env.reset()
     state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
 
-        # This loop constitutes one epoch
+    # This loop constitutes one epoch
     total_reward = 0.0
     while True:
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
