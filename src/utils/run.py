@@ -150,10 +150,10 @@ if __name__ == "__main__":
             advantage_norm = (advantage - advantage.mean()) / (advantage.std() + epsilon)
 
             # Compute entropy
-            entropy = torch.mean(action_distribution.entropy())  # type: ignore
+            entropy = torch.mean(next_action_distribution.entropy())  # type: ignore
 
             # Calculate actor loss
-            action_log_prob = next_action_distribution.log_prob(clipped_next_action)  # type: ignore
+            action_log_prob = action_distribution.log_prob(clipped_action)  # type: ignore
             actor_loss = -torch.mean(action_log_prob * advantage_norm)
 
             # Calculate total loss
