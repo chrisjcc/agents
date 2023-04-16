@@ -132,7 +132,9 @@ if __name__ == "__main__":
         action = env.action_space.sample()
 
         # Convert from numpy to torch tensors, and send to device
-        action_tensor = torch.tensor(action, dtype=torch.float32).unsqueeze(0).to(device)
+        action_tensor = (
+            torch.tensor(action, dtype=torch.float32).unsqueeze(0).to(device)
+        )
 
         # Evaluate Q-value of random state-action pair
         q_value = critic.evaluate(state_tensor, action_tensor)
