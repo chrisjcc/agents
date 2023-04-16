@@ -23,7 +23,7 @@ class Actor(nn.Module):
         self,
         state_dim: int,
         action_dim: int,
-        max_action: int,
+        max_action: float,
         hidden_dim: int = 256,
     ) -> None:
         """
@@ -32,7 +32,7 @@ class Actor(nn.Module):
         Args:
             state_dim (int): Dimension of the state space.
             action_dim (int): Dimension of the action space.
-            max_action (int): Maximum value of the action space.
+            max_action (float): Maximum value of the action space.
             hidden_dim (int): Size of the hidden layers. Default is 256.
         """
 
