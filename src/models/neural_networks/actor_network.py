@@ -20,7 +20,11 @@ class Actor(nn.Module):
     """
 
     def __init__(
-        self, state_dim: int, action_dim: int, max_action: float, hidden_dim: int = 256
+        self,
+        state_dim: int,
+        action_dim: int,
+        max_action: float,
+        hidden_dim: int = 256,
     ) -> None:
         """
         Initializes the Actor network architecture.
@@ -39,13 +43,27 @@ class Actor(nn.Module):
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
 
         # Fully connected layers for policy approximation
-        self.fc1 = nn.Linear(1536, hidden_dim)  # (128 * 11 * 11, ...)
+        self.fc_input_dims = self.calculate_conv_output_dims(
+            (state_dim, state_dim, action_dim)
+        )
+        self.fc1 = nn.Linear(self.fc_input_dims, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
 
         self.mean_fc = nn.Linear(hidden_dim, action_dim)
         self.std_fc = nn.Linear(hidden_dim, action_dim)
 
         self.max_action = max_action
+
+    def calculate_conv_output_dims(
+        self,
+        input_dims: Tuple[int, int, int],
+    ) -> int:
+        state = torch.zeros(1, *input_dims)
+        dims = self.conv1(state)
+        dims = self.conv2(dims)
+        dims = self.conv3(dims)
+
+        return int(torch.prod(torch.tensor(dims.size())))
 
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -64,14 +82,13 @@ class Actor(nn.Module):
         x = F.relu(self.conv3(x))
 
         # Flatten the 3D features tensor to make it suitable for feed-forward layers
-        x = x.reshape(-1, 1536)  # 128 * 11 * 11
+        x = x.reshape(x.size(0), -1)
 
         # Propagate through the dense layers
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
 
         # Predict the mean of the normal distribution for selecting an action
-        # mean = self.max_action * F.softmax(self.mean_fc(x), dim=-1)
         mean = self.max_action * torch.tanh(self.mean_fc(x))
 
         # Predict the standard deviation of the normal distribution for selecting an action
@@ -87,10 +104,11 @@ if __name__ == "__main__":
     # Setup device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Define the environment
+    # Name of environment to be used
+    env_name: str = "CarRacing-v2"
+
     # Passing continuous=True converts the environment to use continuous action.
     # The continuous action space has 3 actions: [steering, gas, brake].
-    env_name: str = "CarRacing-v2"
     env: gym.Env[Any, Any] = gym.make(
         env_name,
         domain_randomize=True,
@@ -98,65 +116,76 @@ if __name__ == "__main__":
         render_mode="human",
     )
 
-    # Get state spaces
-    state, info = env.reset()
-
-    # We first check if state_shape is None. If it is None, we raise a ValueError with an appropriate error message.
-    # Otherwise, we access the first element of state_shape using its index and convert it to an integer
-    # using the int() function.
+    # We first check if state_shape has a length greater than 0 using conditional statements.
+    # Otherwise, we raise a ValueError with an appropriate error message.
     state_shape = env.observation_space.shape
-    if state_shape is None:
-        raise ValueError("Observation space shape is None.")
+    if not state_shape or len(state_shape) == 0:
+        raise ValueError("Observation space shape is not defined.")
+
     state_dim = int(state_shape[0])
 
     # Get action spaces
     action_space = env.action_space
+
     if isinstance(action_space, gym.spaces.Box):
         action_high = action_space.high
         action_shape = action_space.shape
     else:
         raise ValueError("Action space is not of type Box.")
-    if action_shape is None:
-        raise ValueError("Action space shape is None.")
 
-    action_dim = int(action_shape[0])
-    max_action = int(action_high[0])
+    # There are certain gym environments where action_shape is None. In such cases, we set
+    # action_dim and max_action to None and use action_high directly.
+    action_dim, max_action = None, None
+    if action_shape is not None and len(action_shape) > 0:
+        action_dim = int(action_shape[0])
+        max_action = int(action_high[0])
 
-    # Convert action space range of low and high values to Tensors
-    action_space_low = torch.from_numpy(np.array([-1.0, -0.0, 0.0], dtype=np.float32))
-    action_space_high = torch.from_numpy(np.array([+1.0, +1.0, +1.0], dtype=np.float32))
+    # Convert from nupy to tensor
+    low = torch.from_numpy(action_space.low)
+    high = torch.from_numpy(action_space.high)
 
     # Initialize Actor policy
     actor = Actor(state_dim, action_dim, max_action).to(device)
 
+    # Get state spaces
+    state, info = env.reset()
+    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
+
+    # This loop constitutes one epoch
     total_reward = 0.0
     while True:
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         with torch.no_grad():
-            state_tensor = torch.FloatTensor(state).unsqueeze(0).to(device)
             action_mean, action_std = actor(state_tensor)
 
             # Select action by subsampling from action space distribution
             action_distribution = Normal(loc=action_mean, scale=action_std)  # type: ignore
-            action = action_distribution.sample()  # type: ignore
+            action_tensor = action_distribution.sample()  # type: ignore
 
             # Rescale the action to the range of teh action space
-            rescaled_action = ((action + 1) / 2) * (
-                action_space_high - action_space_low
-            ) + action_space_low
+            rescaled_action = ((action_tensor + 1) / 2) * (high - low) + low
 
             # Clip the rescaledaction to ensure it falls within the bounds of the action space
-            clipped_action = torch.clamp(rescaled_action, action_space_low, action_space_high)
+            clipped_action = torch.clamp(
+                rescaled_action,
+                low,
+                high,
+            )
 
         # Convert from numpy to torch tensors, and send to device
         action = clipped_action.squeeze().cpu().detach().numpy()
 
         next_state, reward, terminated, truncated, info = env.step(action)
 
-        state = next_state
+        if next_state is not None:
+            state_tensor = (
+                torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(device)
+            )
+
         total_reward += float(reward)
         print(f"Total reward: {total_reward:.2f}")
 
         # Update if the environment is done
-        if terminated or truncated:
+        done = terminated or truncated
+        if done:
             break

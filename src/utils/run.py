@@ -1,14 +1,12 @@
-# Importing necessary libraries
+# Importing necessary libraries (NOT WORKING)
 import os
 import sys
 from typing import Any
 
-import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torch import optim
-from torch.distributions import Categorical, Normal
+from torch.distributions import Normal
 
 # Add the parent directory of 'agents.src' to the Python path
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -43,19 +41,18 @@ if __name__ == "__main__":
         max_episode_steps=max_episode_steps,
     )
 
-    # Get state spaces
-    state, info = env.reset()
-
     # We first check if state_shape is None. If it is None, we raise a ValueError.
     # Otherwise, we access the first element of state_shape using its index and
     # using the int() function.
     state_shape = env.observation_space.shape
+
     if state_shape is None:
         raise ValueError("Observation space shape is None.")
     state_dim = int(state_shape[0])
 
     # Get action spaces
     action_space = env.action_space
+
     if isinstance(action_space, gym.spaces.Box):
         action_high = action_space.high
         action_shape = action_space.shape
@@ -65,17 +62,7 @@ if __name__ == "__main__":
         raise ValueError("Action space shape is None.")
 
     action_dim = int(action_shape[0])
-    max_action = int(action_high[0])
-    action = env.action_space.sample()
-
-    # Define the action space range
-    action_space = gym.spaces.Box(
-        low=np.array([-1.0, -0.0, 0.0], dtype=np.float32),
-        high=np.array([+1.0, +1.0, +1.0], dtype=np.float32),
-        dtype=np.float32,
-    )
-
-    # Convert action_space low and high values to Tensors
+    max_action = float(action_high[0])
     low = torch.from_numpy(action_space.low)
     high = torch.from_numpy(action_space.high)
 
@@ -97,96 +84,109 @@ if __name__ == "__main__":
     for episode in range(num_episodes):
         # Reset the environment and get the initial state
         state, info = env.reset(seed=42)
+        state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
 
         episode_reward = 0.0
         done = False
 
         while not done:
-            # with torch.no_grad():
-            state_tensor = torch.FloatTensor(state).unsqueeze(0).to(device)
+            #with torch.no_grad():
             # state_tensor /= 255.0  # normalize pixel values from [0, 255] to [0, 1]
             action_mean, action_std = actor(state_tensor)
 
             # Select action by subsampling from action space distribution
             action_distribution = Normal(loc=action_mean, scale=action_std)  # type: ignore
-            action = action_distribution.sample()  # type: ignore
+            action_tensor = action_distribution.sample()  # type: ignore
 
-            # Rescale the action to the range of the action space
-            rescaled_action = ((action + 1) / 2) * (
-                action_space.high - action_space.low
-            ) + action_space.low
+            # Rescale, then clip the action to ensure it falls within the bounds 
+            # of the action space
+            clipped_action = torch.clamp(
+            (((action_tensor + 1) / 2) * (high - low) + low), 
+                low, high
+            ).to(device)
 
-            # Clip the rescaledaction to ensure it falls within the bounds of the action space
-            clipped_action = torch.clamp(rescaled_action, low, high)
+            # Q-value(s,a) calculation
+            q_value = critic(state_tensor, clipped_action)
 
             # Convert from numpy to torch tensors, and send to device
             action = clipped_action.squeeze().cpu().detach().numpy()
 
-            value = critic(state_tensor, torch.tensor([[action]], dtype=torch.float32))
-
             # Take a step in the environment with the chosen action
             next_state, reward, terminated, truncated, info = env.step(action)
 
-            # Compute TD error and update critic network
-            next_state_tensor = torch.FloatTensor(next_state).unsqueeze(0).to(device)
-            # next_state_tensor /= 255.0  # normalize pixel values from [0, 255] to [0, 1]
+            # Convert to tensor
+            next_state_tensor = (
+                torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(device)
+            )
+            #next_state_tensor /= 255.0  # normalize pixel values from [0, 255] to [0, 1]
 
             # Select action by subsampling from action space distribution
             next_action_mean, next_action_std = actor(next_state_tensor)
+
+            # Select action by subsampling from action space distribution
             next_action_distribution = Normal(loc=next_action_mean, scale=next_action_std)  # type: ignore
-            next_action = next_action_distribution.sample()  # type: ignore
+            next_action_tensor = next_action_distribution.sample()  # type: ignore
 
-            # Rescale the action to the range of teh action space
-            rescaled_next_action = ((next_action + 1) / 2) * (
-                action_space.high - action_space.low
-            ) + action_space.low
+            # Rescale, then clip the action to ensure it falls within the bounds of the action space
+            clipped_next_action = torch.clamp(
+                (((next_action_tensor + 1) / 2) * (high - low) + low), 
+                low, high
+            ).to(device)
 
-            # Clip the rescaledaction to ensure it falls within the bounds of the action space
-            clipped_next_action = torch.clamp(rescaled_next_action, low, high)
+            # Q-value(s', a') calculation
+            next_q_value = critic(next_state_tensor, clipped_next_action)
 
-            # Convert from numpy to torch tensors, and send to device
-            next_action = clipped_next_action.squeeze().cpu().detach().numpy()
+            # Calculate target Q-value
+            target_q_value = reward + gamma * (1 - terminated) * next_q_value
 
-            next_value = critic(
-                next_state_tensor, torch.tensor([[next_action]], dtype=torch.float32)
-            ).detach()
+            # Calculate critic loss
+            critic_loss = F.smooth_l1_loss(target_q_value, q_value)
 
-            td_error = (
-                reward
-                + gamma * next_value.detach().numpy()[0][0] * (1 - terminated)
-                - value.detach().numpy()[0][0]
-            )
+            # Calculate advantage
+            advantage = target_q_value - q_value
 
-            critic_loss_tensor = torch.tensor(
-                td_error, dtype=torch.float32, requires_grad=True
-            )
-            critic_loss = critic_loss_tensor**2
+            # Advantage normalization can improve efficiency of gradient
+            epsilon = 1e-8
+            advantage_norm = (advantage - advantage.mean()) / (advantage.std() + epsilon)
 
+            # Compute entropy
+            entropy = torch.mean(next_action_distribution.entropy())  # type: ignore
+
+            # Calculate actor loss
+            action_log_prob = action_distribution.log_prob(clipped_action)  # type: ignore
+            actor_loss = -torch.mean(action_log_prob * advantage_norm)
+
+            # Calculate total loss
+            loss = value_coef * critic_loss + actor_loss - entropy_coef * entropy
+
+            # Zero out gradients
             critic_optimizer.zero_grad()
-            critic_loss.backward()
+            actor_optimizer.zero_grad()
+
+            # Calculate backpropagation
+            loss.backward()
+
+            # Apply gradient norm clipping
+            torch.nn.utils.clip_grad_norm_(
+                critic.parameters(), max_norm=0.5, norm_type=2
+            )
+            torch.nn.utils.clip_grad_norm_(
+                actor.parameters(), max_norm=0.5, norm_type=2
+            )
+
+            # Update network weights
             critic_optimizer.step()
-
-            # Compute advantage and update actor network
-            advantage = td_error
-            actor_loss = (
-                -action_distribution.log_prob(torch.tensor(action, dtype=torch.float32))  # type: ignore
-                * advantage
-                - entropy_coef * action_distribution.entropy()  # type: ignore
-            )
-            actor_optimizer.zero_grad()
-            critic_optimizer.zero_grad()
-            actor_loss_scalar = actor_loss.mean()
-            actor_optimizer.zero_grad()
-            actor_loss_scalar.backward()
             actor_optimizer.step()
 
-            episode_reward += float(reward)
             state = next_state
-            print(f"Episode's cummulative reward: {episode_reward:.2f}")
+            state_tensor = next_state_tensor
+
+            episode_reward += float(reward)
+            print(f"Total reward: {episode_reward:.2f}")
 
             # Update if the environment is done
-            if terminated or truncated:
-                done = True
+            done = terminated or truncated
+            if done:
                 break
 
         print("Episode %d, total reward: %f" % (episode, episode_reward))
