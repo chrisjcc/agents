@@ -8,6 +8,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical, Normal
 
+
 # Setting the seed for reproducibility
 torch.manual_seed(0)
 
@@ -104,10 +105,11 @@ if __name__ == "__main__":
     # Setup device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Define the environment
+    # Name of environment to be used
+    env_name: str = "CarRacing-v2"
+
     # Passing continuous=True converts the environment to use continuous action.
     # The continuous action space has 3 actions: [steering, gas, brake].
-    env_name: str = "CarRacing-v2"
     env: gym.Env[Any, Any] = gym.make(
         env_name,
         domain_randomize=True,
@@ -115,13 +117,12 @@ if __name__ == "__main__":
         render_mode="human",
     )
 
-    # We first check if state_shape is None. If it is None, we raise a ValueError with an appropriate error message.
-    # Otherwise, we access the first element of state_shape using its index and convert it to an integer
-    # using the int() function.
+    # We first check if state_shape has a length greater than 0 using conditional statements.
+    # Otherwise, we raise a ValueError with an appropriate error message.
     state_shape = env.observation_space.shape
+    if not state_shape or len(state_shape) == 0:
+        raise ValueError("Observation space shape is not defined.")
 
-    if state_shape is None:
-        raise ValueError("Observation space shape is None.")
     state_dim = int(state_shape[0])
 
     # Get action spaces
@@ -132,19 +133,26 @@ if __name__ == "__main__":
         action_shape = action_space.shape
     else:
         raise ValueError("Action space is not of type Box.")
-    if action_shape is None:
-        raise ValueError("Action space shape is None.")
+    
+    # There are certain gym environments where action_shape is None. In such cases, we set
+    # action_dim and max_action to None and use action_high directly.
+    action_dim, max_action = None, None
+    if action_shape is not None and len(action_shape) > 0:
+        action_dim = int(action_shape[0])
+        max_action = int(action_high[0])
 
-    action_dim = int(action_shape[0])
-    max_action = int(action_high[0])
+    # Convert from nupy to tensor
+    low = torch.from_numpy(action_space.low)
+    high = torch.from_numpy(action_space.high)
 
     # Initialize Actor policy
     actor = Actor(state_dim, action_dim, max_action).to(device)
 
     # Get state spaces
     state, info = env.reset()
-    state_tensor = torch.FloatTensor(state).unsqueeze(0).to(device)
+    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
 
+        # This loop constitutes one epoch
     total_reward = 0.0
     while True:
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
@@ -156,15 +164,13 @@ if __name__ == "__main__":
             action_tensor = action_distribution.sample()  # type: ignore
 
             # Rescale the action to the range of teh action space
-            rescaled_action = ((action_tensor + 1) / 2) * (
-                action_space.high - action_space.low
-            ) + action_space.low
+            rescaled_action = ((action_tensor + 1) / 2) * (high - low) + low
 
             # Clip the rescaledaction to ensure it falls within the bounds of the action space
             clipped_action = torch.clamp(
                 rescaled_action,
-                torch.from_numpy(action_space.low),
-                torch.from_numpy(action_space.high),
+                low,
+                high,
             )
 
         # Convert from numpy to torch tensors, and send to device
@@ -172,10 +178,15 @@ if __name__ == "__main__":
 
         next_state, reward, terminated, truncated, info = env.step(action)
 
-        state = next_state
+        if next_state is not None:
+            state_tensor = (
+                torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(device)
+            )
+
         total_reward += float(reward)
         print(f"Total reward: {total_reward:.2f}")
 
         # Update if the environment is done
-        if terminated or truncated:
+        done = terminated or truncated
+        if done:
             break
