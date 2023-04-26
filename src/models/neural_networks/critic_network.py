@@ -55,8 +55,8 @@ class Critic(nn.Module):
         # Flatten the 3D features tensor to make it suitable for feed-forward layers
         x = x.reshape(x.size(0), -1)
 
-        # torch.Size([1, 1, 96, 96, 3])
-        action = action.view(-1, action.size(-1))  # reshape to (batch_size, action_dim)
+        # reshape torch.Size([1, 1, 96, 96, 3]) to (batch_size, action_dim)
+        action = action.view(-1, action.size(-1))
         action = F.relu(self.fc1(action))  # apply linear layer to action
 
         x = torch.cat([x, action], dim=1)  # concatenate action and feature tensors

@@ -34,7 +34,6 @@ class ActorCriticAgent:
     ) -> None:
         """
         Initializes the ActorCriticAgent.
-
         :param state_dim: The number of dimensions in the state space.
         :param action_dim: The number of dimensions in the action space.
         :param hidden_dim: The number of hidden units in the neural networks for actor and critic.
@@ -81,7 +80,6 @@ class ActorCriticAgent:
     ) -> None:
         """
         Updates the ActorCriticAgent.
-
         :param state: The current state of the environment.
         :param action: The action taken within the environment.
         :param reward: The reward obtained for taking the action in the current state.
@@ -99,7 +97,12 @@ class ActorCriticAgent:
         ones = torch.ones_like(
             terminated
         )  # create a tensor of 1's with the same size as terminated
+
+        # TODO: improve this step (why is it necessary perform this modification only here?)
+        q_value = torch.squeeze(q_value, dim=1)
+        next_q_value = torch.squeeze(next_q_value, dim=1)
         target_q_value = reward + self.gamma * (ones - terminated) * next_q_value
+
         critic_loss = F.smooth_l1_loss(target_q_value, q_value)
 
         # Calculate advantage (in this case specifically temporal-difference)
@@ -110,6 +113,10 @@ class ActorCriticAgent:
 
         # Calculate actor loss
         action_log_prob = action_distribution.log_prob(action)
+
+        # TODO: improve this step (is it necessary only handle here??)
+        action_log_prob = action_log_prob.reshape(-1, action_log_prob.size(0))
+
         actor_loss = -torch.mean(action_log_prob * advantage)
 
         # Calculate total loss

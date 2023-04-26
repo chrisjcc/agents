@@ -28,7 +28,6 @@ class Trainer:  # responsible for running over the steps and collecting all the 
     ):
         """
         Initializes the Trainer.
-
         :param env: The OpenAI Gym environment.
         :param agent: The actor-critic agent.
         :param max_episodes: The maximum number of episodes to train for.
@@ -72,7 +71,6 @@ class Trainer:  # responsible for running over the steps and collecting all the 
     ) -> Tuple[Any, Any]:
         """
         Run a single training step in the OpenAI Gym environment.
-
         :param state: The current state of the environment.
         :return: Whether the episode is done and the reward obtained.
         """
@@ -121,7 +119,6 @@ class Trainer:  # responsible for running over the steps and collecting all the 
     def train(self, batch_size: int) -> None:
         """
         Run the training loop for the actor-critic agent.
-
         :param batch_size: The size of the batch of transitions
             of state, action, reward, next_state, and done to learn from.
         :return: A list of episode rewards.
@@ -168,7 +165,6 @@ class Trainer:  # responsible for running over the steps and collecting all the 
     ) -> None:
         """
         Save the current state of the agent to a file.
-
         :param checkpoint_path: path to checkpoint directory
         :param episode_num: The current episode number.
         :param episode_reward: The current episode reward.
