@@ -79,6 +79,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         max_episodes: int,
         low: Any,
         high: Any,
+        device: Any,
         checkpoint_path: str = "model_checkpoints",
         checkpoint_freq: int = 100,
         batch_size: int = 1024,
@@ -101,6 +102,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         self.batch_size = batch_size
         self.low = low
         self.high = high
+        self.device = device
 
     def env_step(
         self, action: torch.Tensor
@@ -116,16 +118,16 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         # Convert to tensor
         state = torch.tensor(state,
             dtype=torch.float32
-        ).unsqueeze(0).to(device)
+        ).unsqueeze(0).to(self.device)
         reward = torch.tensor(reward,
             dtype=torch.float32
-        ).unsqueeze(0).to(device)
+        ).unsqueeze(0).to(self.device)
         terminated =  torch.tensor(terminated,
             dtype=torch.float32
-        ).unsqueeze(0).to(device)
+        ).unsqueeze(0).to(self.device)
         truncated = torch.tensor(truncated,
             dtype=torch.float32
-        ).unsqueeze(0).to(device)
+        ).unsqueeze(0).to(self.device)
 
         return state, reward, terminated, truncated
 
@@ -259,7 +261,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             state_ndarray, info = env.reset()
             state = torch.tensor(state_ndarray, 
                 dtype=torch.float32
-            ).unsqueeze(0).to(device)
+            ).unsqueeze(0).to(self.device)
 
             # Set variables
             episode_reward = 0.0
@@ -382,8 +384,8 @@ if __name__ == "__main__":
     max_action = int(action_high[0])
 
     # Convert from nupy to tensor
-    low = torch.from_numpy(action_space.low)
-    high = torch.from_numpy(action_space.high)
+    low = torch.from_numpy(action_space.low).to(device)
+    high = torch.from_numpy(action_space.high).to(device)
 
     # Actor-Critic hyperparameters
     gamma = 0.99
@@ -422,6 +424,7 @@ if __name__ == "__main__":
         batch_size=batch_size,
         low=low,
         high=high,
+        device=device
     )
 
     trainer.train()

@@ -183,8 +183,8 @@ if __name__ == "__main__":
     max_action = float(action_high[0])
 
     # Convert from numpy to tensor
-    low = torch.from_numpy(action_space.low)
-    high = torch.from_numpy(action_space.high)
+    low = torch.from_numpy(action_space.low).to(device)
+    high = torch.from_numpy(action_space.high).to(device)
 
     # Actor-Critic hyperparameters
     lr = 0.0001

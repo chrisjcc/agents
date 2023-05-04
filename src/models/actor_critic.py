@@ -107,8 +107,8 @@ if __name__ == "__main__":
     max_action = float(action_space.high[0])
     action_dim = action_space.shape[0]
 
-    low = torch.from_numpy(action_space.low)
-    high = torch.from_numpy(action_space.high)
+    low = torch.from_numpy(action_space.low).to(device)
+    high = torch.from_numpy(action_space.high).to(device)
 
     # Actor-Critic hyperparameters
     gamma = 0.99

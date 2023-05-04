@@ -138,8 +138,8 @@ if __name__ == "__main__":
         max_action = int(action_high[0])
 
     # Convert from nupy to tensor
-    low = torch.from_numpy(action_space.low)
-    high = torch.from_numpy(action_space.high)
+    low = torch.from_numpy(action_space.low).to(device)
+    high = torch.from_numpy(action_space.high).to(device)
 
     # Initialize Actor policy
     actor = Actor(state_dim, action_dim, max_action).to(device)
