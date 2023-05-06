@@ -1,8 +1,12 @@
 # Importing necessary libraries
 import os
+from collections import deque
 from typing import Any, Tuple
 
+import numpy as np
 import torch
+
+from replay_buffer.replay_buffer import ReplayBuffer
 from actor_critic_agent import ActorCriticAgent
 
 # Setting the seed for reproducibility
@@ -19,15 +23,18 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         self,
         env: Any,
         agent: ActorCriticAgent,
+        memory: ReplayBuffer,
         max_episodes: int,
         low: Any,
         high: Any,
         device: Any,
         checkpoint_path: str = "model_checkpoints",
         checkpoint_freq: int = 100,
+        batch_size: int = 1024,
     ):
         """
         Initializes the Trainer.
+
         :param env: The OpenAI Gym environment.
         :param agent: The actor-critic agent.
         :param max_episodes: The maximum number of episodes to train for.
@@ -39,6 +46,8 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         self.max_episodes = max_episodes
         self.checkpoint_path = checkpoint_path
         self.checkpoint_freq = checkpoint_freq
+        self.memory = memory
+        self.batch_size = batch_size
         self.low = low
         self.high = high
         self.device = device
@@ -49,6 +58,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         """Returns state, reward and done flag given an action."""
         # Convert action from torch.Tensor to np.ndarray
         action = action.squeeze().cpu().detach().numpy()
+        # action = action.squeeze(0).cpu().detach().numpy()
 
         # Take one step in the environment given the agent action
         state, reward, terminated, truncated, info = self.env.step(action)
@@ -59,39 +69,29 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         terminated = (
             torch.tensor(terminated, dtype=torch.float32).unsqueeze(0).to(self.device)
         )
-        truncated = (
-            torch.tensor(truncated, dtype=torch.float32).unsqueeze(0).to(self.device)
-        )
+        truncated = torch.tensor(truncated, dtype=torch.float32).unsqueeze(0).to(self.device)
 
         return state, reward, terminated, truncated
 
-    def train_step(
-        self,
-        state: torch.Tensor,
-    ) -> Tuple[Any, Any]:
+    def train_step(self):
         """
         Run a single training step in the OpenAI Gym environment.
-        :param state: The current state of the environment.
-        :return: Whether the episode is done and the reward obtained.
+
+        :param batch: The batch of transitions of state, action, reward, next_state, and done to learn from.
+        :return: The next state, reward, and whether the episode is done.
         """
+        # Sample a batch from the replay buffer
+        state, action, reward, next_state, done = self.memory.sample(self.batch_size)
+
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
-        with torch.no_grad():
-            # Obtain mean and std action given state
-            action, action_distribution = self.agent.actor_critic.sample_action(state)
-
-            # Rescale, then clip the action to ensure it falls within the bounds of the action space
-            clipped_action = torch.clamp(
-                (((action + 1) / 2) * (self.high - self.low) + self.low),
-                self.low,
-                self.high,
-            )
-
-        # Take one step in the environment given the agent action
-        next_state, reward, terminated, truncated = self.env_step(clipped_action)
+        # with torch.no_grad():
+        _, action_distribution = self.agent.actor_critic.sample_action(
+            state.squeeze(1)
+        )  # TODO: THINK ABOUT!!
 
         # Obtain mean and std of next action given next state
         next_action, next_action_distribution = self.agent.actor_critic.sample_action(
-            next_state
+            next_state.squeeze(1)
         )
 
         # Rescale, then clip the action to ensure it falls within the bounds of the action space
@@ -101,47 +101,107 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             self.high,
         )
 
+        # TODO: improve this step (couldn't this be handled earlier)
+        state = torch.squeeze(state, dim=1)
+        action = torch.squeeze(action, dim=1)
+        reward = torch.squeeze(reward, dim=1)
+        next_state = torch.squeeze(next_state, dim=1)
+        clipped_next_action = torch.squeeze(clipped_next_action, dim=1)
+        done = torch.squeeze(done, dim=1)
+
+        # Update the neural networks
         self.agent.update(
             state,
-            clipped_action,
+            action,
             reward,
             next_state,
             clipped_next_action,
-            terminated,
+            done,
             action_distribution,
             next_action_distribution,
         )
 
-        done = terminated or truncated
-
-        return done, reward
-
-    def train(self, batch_size: int) -> None:
+    def train(self) -> None:
         """
         Run the training loop for the actor-critic agent.
+
         :param batch_size: The size of the batch of transitions
             of state, action, reward, next_state, and done to learn from.
         :return: A list of episode rewards.
         """
+        print("Collecting trajectory samples based on random actions.")
+        # Fill the replay buffer before starting training
+        state_ndarray, info = env.reset()
+
+        # Convert the state to a PyTorch tensor
+        state = torch.tensor(state_ndarray, dtype=torch.float32).unsqueeze(0)
+
+        while len(self.memory) < self.memory.buffer.maxlen:
+            done = False
+
+            while not done:
+                # Get an action from the policy network
+                with torch.no_grad():
+                    action, action_distribution = self.agent.actor_critic.sample_action(
+                        state.squeeze(1)
+                    )
+
+                # Rescale the action to the range of the action space
+                rescaled_action = ((action + 1) / 2) * (self.high - self.low) + self.low
+
+                # Clip the rescaledaction to ensure it falls within the bounds of the action space
+                clipped_action = torch.clamp(rescaled_action, self.low, self.high)
+
+                # Take a step in the environment with the chosen action
+                next_state, reward, terminated, truncated = self.env_step(action)
+
+                done = terminated or truncated
+
+                # Collect experience trajectory in replay buffer
+                self.memory.add(state, clipped_action, reward, next_state, done)
+
+                # Update the current state
+                state = next_state
+
         for episode in range(self.max_episodes):
+            print(f"Episode: {episode}")
+
             # Get state spaces
             state_ndarray, info = env.reset()
             state = (
-                torch.tensor(state_ndarray, dtype=torch.float32)
-                .unsqueeze(0)
-                .to(self.device)
+                torch.tensor(state_ndarray, dtype=torch.float32).unsqueeze(0).to(self.device)
             )
 
+            # Set variables
             episode_reward = 0.0
             done = False
             step = 0
 
             while not done:
                 # Update model parameters using TD error
-                done, reward = self.train_step(state)
+                self.train_step()
+
+                # Pass the state through the Actor model to obtain a probability distribution over the actions
+                action, action_probs = self.agent.actor_critic.sample_action(state)
+
+                # TODO: do I need to rescale and clip the action??
+                # Rescale the action to the range of the action space
+                rescaled_action = ((action + 1) / 2) * (self.high - self.low) + self.low
+
+                # Clip the rescaledaction to ensure it falls within the bounds of the action space
+                clipped_action = torch.clamp(rescaled_action, self.low, self.high)
+
+                # Take the action in the environment and observe the next state, reward, and done flag
+                next_state, reward, terminated, truncated = self.env_step(
+                    clipped_action
+                )
+
+                done = terminated or truncated
+
+                self.memory.add(state, clipped_action, reward, next_state, done)
 
                 # Update episode reward
-                episode_reward += float(reward)
+                episode_reward += float(torch.mean(reward))
                 print(
                     f"Episode {episode}: Step {step}: Total reward = {episode_reward:.2f}"
                 )
@@ -150,6 +210,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
                 if episode % self.checkpoint_freq == 0:
                     self.save_checkpoint(self.checkpoint_path, episode, episode_reward)
 
+                state = next_state
                 step += 1
 
             # Save last episode model
@@ -165,6 +226,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
     ) -> None:
         """
         Save the current state of the agent to a file.
+
         :param checkpoint_path: path to checkpoint directory
         :param episode_num: The current episode number.
         :param episode_reward: The current episode reward.
@@ -192,7 +254,7 @@ if __name__ == "__main__":
     # The continuous action space has 3 actions: [steering, gas, brake].
     env_name: str = "CarRacing-v2"
     max_episode_steps = 600  # default
-    num_episodes = 3
+    num_episodes = 10
 
     env: gym.Env[Any, Any] = gym.make(
         env_name,
@@ -226,8 +288,8 @@ if __name__ == "__main__":
     max_action = int(action_high[0])
 
     # Convert from nupy to tensor
-    low = torch.from_numpy(action_space.low)
-    high = torch.from_numpy(action_space.high)
+    low = torch.from_numpy(action_space.low).to(device)
+    high = torch.from_numpy(action_space.high).to(device)
 
     # Actor-Critic hyperparameters
     gamma = 0.99
@@ -253,17 +315,22 @@ if __name__ == "__main__":
         device=device,
     )
 
+    # Initialize the replay buffer
+    memory = ReplayBuffer(buffer_size=1024)
+
     # Create trainer to train agent
     trainer = Trainer(
         env=env,
         agent=agent,
+        memory=memory,
         max_episodes=num_episodes,
         checkpoint_path=checkpoint_dir,
+        batch_size=batch_size,
         low=low,
         high=high,
         device=device,
     )
 
-    trainer.train(batch_size=batch_size)
+    trainer.train()
     # add this line to close the environment after training
     env.close()  # type: ignore

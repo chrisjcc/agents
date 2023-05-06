@@ -28,7 +28,6 @@ class Actor(nn.Module):
     ) -> None:
         """
         Initializes the Actor network architecture.
-
         Args:
             state_dim (int): Dimension of the state space.
             action_dim (int): Dimension of the action space.
@@ -68,10 +67,8 @@ class Actor(nn.Module):
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass of the actor network.
-
         Args:
             state (torch.Tensor): Current state of the environment.
-
         Returns:
             A tuple with the predicted mean and standard deviation of the normal distribution.
         """
@@ -92,7 +89,7 @@ class Actor(nn.Module):
         mean = self.max_action * torch.tanh(self.mean_fc(x))
 
         # Predict the standard deviation of the normal distribution for selecting an action
-        std = F.softplus(self.std_fc(x))
+        std = F.softplus(self.std_fc(x)) + 1e-5  # Add a small constant to ensure positivity and numerical stability caused by 'std' being too close to zero.
 
         return mean, std
 
@@ -141,8 +138,8 @@ if __name__ == "__main__":
         max_action = int(action_high[0])
 
     # Convert from nupy to tensor
-    low = torch.from_numpy(action_space.low)
-    high = torch.from_numpy(action_space.high)
+    low = torch.from_numpy(action_space.low).to(device)
+    high = torch.from_numpy(action_space.high).to(device)
 
     # Initialize Actor policy
     actor = Actor(state_dim, action_dim, max_action).to(device)

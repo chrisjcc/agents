@@ -38,7 +38,6 @@ class ActorCritic(nn.Module):
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, Normal, torch.Tensor]:
         """
         Return predictions from the  Actor and Critic networks, given a state tensor.
-
         :param state: A pytorch tensor representing the current state.
         :return: Pytorch Tensor representing the Actor network predictions and the Critic network predictions.
         """
@@ -51,7 +50,6 @@ class ActorCritic(nn.Module):
     def sample_action(self, state: torch.Tensor) -> Tuple[torch.Tensor, Normal]:
         """
         Performs a forward pass using the actor network.
-
         :param state: The current state of the agent.
         :return: A tuple containing the selected action, its distribution and its estimated value.
         """
@@ -69,7 +67,6 @@ class ActorCritic(nn.Module):
     def evaluate(self, state: torch.Tensor, action: torch.Tensor) -> Any:
         """
         Perform a forward pass using critic network to calculate Q-value(s,a).
-
         :param state: The current state of the agent.
         :param action: The action take by the agent.
         :return: A Q-value tuple evaluating the state-action value
@@ -109,8 +106,9 @@ if __name__ == "__main__":
     action_space = env.action_space
     max_action = float(action_space.high[0])
     action_dim = action_space.shape[0]
-    low = torch.from_numpy(action_space.low)
-    high = torch.from_numpy(action_space.high)
+
+    low = torch.from_numpy(action_space.low).to(device)
+    high = torch.from_numpy(action_space.high).to(device)
 
     # Actor-Critic hyperparameters
     gamma = 0.99
@@ -150,6 +148,7 @@ if __name__ == "__main__":
 
         # Evaluate Q-value of state-action pair
         q_value = actor_critic.evaluate(state_tensor, clipped_action)
+        print(f"Q-value(state,action): {q_value.item():.3f}")
 
         # Convert from numpy to torch tensors, and send to device
         action = clipped_action.squeeze().cpu().detach().numpy()
@@ -177,6 +176,7 @@ if __name__ == "__main__":
 
         # Evaluate Q-value of next state-action pair
         next_q_value = actor_critic.evaluate(next_state_tensor, clipped_next_action)
+        print(f"Next Q-value(next_state,next_action): {q_value.item():.3f}")
 
         # Calculate target Q-value
         target_q_value = reward_tensor + gamma * (1 - terminated) * next_q_value
