@@ -1,5 +1,5 @@
 # Importing necessary libraries
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 import torch
@@ -8,6 +8,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from actor_critic import ActorCritic
 from torch.distributions import Categorical, Normal
+
+from gae import GAE
 
 # Setting the seed for reproducibility
 torch.manual_seed(0)
@@ -51,6 +53,7 @@ class ActorCriticAgent:
             device=device,
         )
         self.optimizer = optim.Adam(self.actor_critic.parameters(), lr=lr)
+        self.gae = GAE(gamma=0.99, tau=0.95)
 
         self.gamma = gamma
         self.seed = seed
@@ -76,7 +79,8 @@ class ActorCriticAgent:
         next_action: torch.Tensor,
         terminated: torch.Tensor,
         action_distribution: Any,
-        next_action_distribution: Any
+        next_action_distribution: Any,
+        use_gae: Optional[bool]=True
     ) -> None:
         """
         Updates the ActorCriticAgent.
@@ -98,10 +102,16 @@ class ActorCriticAgent:
             terminated
         )  # create a tensor of 1's with the same size as terminated
 
-        # TODO: improve this step (why is it necessary perform this modification only here?)
+        # TODO: improve this step (why is it necessary?)
         q_value = torch.squeeze(q_value, dim=1)
         next_q_value = torch.squeeze(next_q_value, dim=1)
-        target_q_value = reward + self.gamma * (ones - terminated) * next_q_value
+
+        # Discounted rewards
+        if use_gae:
+            target_q_value = self.gae.calculate_gae_eligibility_trace(reward, q_value, next_q_value, terminated, normalize=True)
+
+        else:
+            target_q_value = reward + self.gamma * (ones - terminated) * next_q_value
 
         critic_loss = F.smooth_l1_loss(target_q_value, q_value)
 
@@ -114,7 +124,7 @@ class ActorCriticAgent:
         # Calculate actor loss
         action_log_prob = action_distribution.log_prob(action)
 
-        # TODO: improve this step (is it necessary only handle here??)
+        # TODO: improve this step (is it necessary??)
         action_log_prob = action_log_prob.reshape(-1, action_log_prob.size(0))
 
         actor_loss = -torch.mean(action_log_prob * advantage)
@@ -271,3 +281,4 @@ if __name__ == "__main__":
         done = terminated or truncated
         if done:
             break
+

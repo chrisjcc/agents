@@ -1,3 +1,4 @@
+# Importing necessary libraries
 import os
 from collections import deque
 from typing import Any, Tuple
@@ -5,64 +6,11 @@ from typing import Any, Tuple
 import numpy as np
 import torch
 
+from replay_buffer.replay_buffer import ReplayBuffer
 from actor_critic_agent import ActorCriticAgent
 
 # Setting the seed for reproducibility
 torch.manual_seed(0)
-
-
-class ReplayBuffer(torch.utils.data.Dataset):
-    def __init__(self, buffer_size: int) -> None:
-        """
-        Initializes the ReplayBuffer.
-
-        :param buffer_size: The maximum memory size for the replay buffer.
-        """
-        self.buffer_size = buffer_size
-        self.buffer = deque(maxlen=buffer_size)
-
-    def __len__(self):
-        return len(self.buffer)
-
-    def add(self, state, action, reward, next_state, done):
-        """
-        Adds the state transition into the memory replay buffer.
-
-        :param state: The current state of the environment.
-        :param action: The action taken in the current state.
-        :param reward: The reward received from the environment.
-        :param next_state: The next state of the environment.
-        :param done: Whether the episode has ended.
-        """
-        assert isinstance(state, torch.Tensor)
-        assert isinstance(action, torch.Tensor)
-        assert isinstance(reward, torch.Tensor)
-        assert isinstance(next_state, torch.Tensor)
-        assert isinstance(done, torch.Tensor)
-
-        self.buffer.append((state, action, reward, next_state, done))
-
-    def sample(
-        self, batch_size
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        Selects a mini-batch of samples from the replay memory buffer.
-
-        :param batch_size: The number of samples to include in a mini-batch.
-        :return: A tuple of (state, action, reward, next_state, done) for the current episode.
-        """
-        indices = np.random.choice(len(self.buffer), batch_size, replace=False)
-        state, action, reward, next_state, done = zip(
-            *[self.buffer[i] for i in indices]
-        )
-
-        return (
-            torch.stack(state),
-            torch.stack(action),
-            torch.stack(reward),
-            torch.stack(next_state),
-            torch.stack(done),
-        )
 
 
 # Trainer class to train the Agent
@@ -110,55 +58,20 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         """Returns state, reward and done flag given an action."""
         # Convert action from torch.Tensor to np.ndarray
         action = action.squeeze().cpu().detach().numpy()
-        #action = action.squeeze(0).cpu().detach().numpy()
+        # action = action.squeeze(0).cpu().detach().numpy()
 
         # Take one step in the environment given the agent action
         state, reward, terminated, truncated, info = self.env.step(action)
 
         # Convert to tensor
-        state = torch.tensor(state,
-            dtype=torch.float32
-        ).unsqueeze(0).to(self.device)
-        reward = torch.tensor(reward,
-            dtype=torch.float32
-        ).unsqueeze(0).to(self.device)
-        terminated =  torch.tensor(terminated,
-            dtype=torch.float32
-        ).unsqueeze(0).to(self.device)
-        truncated = torch.tensor(truncated,
-            dtype=torch.float32
-        ).unsqueeze(0).to(self.device)
+        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
+        reward = torch.tensor(reward, dtype=torch.float32).unsqueeze(0).to(self.device)
+        terminated = (
+            torch.tensor(terminated, dtype=torch.float32).unsqueeze(0).to(self.device)
+        )
+        truncated = torch.tensor(truncated, dtype=torch.float32).unsqueeze(0).to(self.device)
 
         return state, reward, terminated, truncated
-
-    def calculate_returns_advantages(self, rewards, values, gamma=0.99, lam=0.95):
-        """ Generalized Advantage Estimation """
-        returns = []
-        advantages = []
-        episode_return = 0
-        prev_value = 0
-
-        # Loop through rewards in reverse order
-        for i in reversed(range(len(rewards))):
-            # Update episode return and advantage
-            episode_return = rewards[i] + gamma * episode_return
-            delta = rewards[i] + gamma * values[i + 1] - values[i]
-            advantage = delta + gamma * lam * prev_value
-
-            # Append to returns and advantages
-            returns.insert(0, episode_return)
-            advantages.insert(0, advantage)
-
-            # Update prev_value
-            prev_value = values[i]
-
-        # Convert to tensor and normalize advantages
-        returns = torch.tensor(returns, dtype=torch.float32)
-        advantages = torch.tensor(advantages, dtype=torch.float32)
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-
-        return returns, advantages
-
 
     def train_step(self):
         """
@@ -171,8 +84,10 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         state, action, reward, next_state, done = self.memory.sample(self.batch_size)
 
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
-        #with torch.no_grad():
-        _, action_distribution = self.agent.actor_critic.sample_action(state.squeeze(1))  # TODO: THINK ABOUT!!
+        # with torch.no_grad():
+        _, action_distribution = self.agent.actor_critic.sample_action(
+            state.squeeze(1)
+        )  # TODO: THINK ABOUT!!
 
         # Obtain mean and std of next action given next state
         next_action, next_action_distribution = self.agent.actor_critic.sample_action(
@@ -187,9 +102,9 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         )
 
         # TODO: improve this step (couldn't this be handled earlier)
-        state      = torch.squeeze(state, dim=1)
-        action     = torch.squeeze(action, dim=1)
-        reward     = torch.squeeze(reward, dim=1)
+        state = torch.squeeze(state, dim=1)
+        action = torch.squeeze(action, dim=1)
+        reward = torch.squeeze(reward, dim=1)
         next_state = torch.squeeze(next_state, dim=1)
         clipped_next_action = torch.squeeze(clipped_next_action, dim=1)
         done = torch.squeeze(done, dim=1)
@@ -243,13 +158,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
                 done = terminated or truncated
 
                 # Collect experience trajectory in replay buffer
-                self.memory.add(
-                    state, 
-                    clipped_action,
-                    reward, 
-                    next_state, 
-                    done
-                )
+                self.memory.add(state, clipped_action, reward, next_state, done)
 
                 # Update the current state
                 state = next_state
@@ -259,9 +168,9 @@ class Trainer:  # responsible for running over the steps and collecting all the 
 
             # Get state spaces
             state_ndarray, info = env.reset()
-            state = torch.tensor(state_ndarray, 
-                dtype=torch.float32
-            ).unsqueeze(0).to(self.device)
+            state = (
+                torch.tensor(state_ndarray, dtype=torch.float32).unsqueeze(0).to(self.device)
+            )
 
             # Set variables
             episode_reward = 0.0
@@ -283,18 +192,13 @@ class Trainer:  # responsible for running over the steps and collecting all the 
                 clipped_action = torch.clamp(rescaled_action, self.low, self.high)
 
                 # Take the action in the environment and observe the next state, reward, and done flag
-                next_state, reward, terminated, truncated = self.env_step(clipped_action)
-                
-                done = terminated or truncated
-
-                self.memory.add(
-                    state, 
-                    clipped_action,
-                    reward, 
-                    next_state, 
-                    done #_tensor
+                next_state, reward, terminated, truncated = self.env_step(
+                    clipped_action
                 )
 
+                done = terminated or truncated
+
+                self.memory.add(state, clipped_action, reward, next_state, done)
 
                 # Update episode reward
                 episode_reward += float(torch.mean(reward))
@@ -424,7 +328,7 @@ if __name__ == "__main__":
         batch_size=batch_size,
         low=low,
         high=high,
-        device=device
+        device=device,
     )
 
     trainer.train()
