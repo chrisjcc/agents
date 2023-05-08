@@ -1,4 +1,3 @@
-- __init__.py
 - models/
   - __init__.py
   - actor_critic.py

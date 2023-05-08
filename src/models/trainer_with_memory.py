@@ -64,7 +64,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         state, reward, terminated, truncated, info = self.env.step(action)
 
         # Convert to tensor
-        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
+        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device).permute(0, 3, 1, 2)
         reward = torch.tensor(reward, dtype=torch.float32).unsqueeze(0).to(self.device)
         terminated = (
             torch.tensor(terminated, dtype=torch.float32).unsqueeze(0).to(self.device)
@@ -131,10 +131,10 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         """
         print("Collecting trajectory samples based on random actions.")
         # Fill the replay buffer before starting training
-        state_ndarray, info = env.reset()
+        state_ndarray, info = self.env.reset()
 
         # Convert the state to a PyTorch tensor
-        state = torch.tensor(state_ndarray, dtype=torch.float32).unsqueeze(0)
+        state = torch.tensor(state_ndarray, dtype=torch.float32).unsqueeze(0).permute(0, 3, 1, 2)
 
         while len(self.memory) < self.memory.buffer.maxlen:
             done = False
@@ -167,10 +167,10 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             print(f"Episode: {episode}")
 
             # Get state spaces
-            state_ndarray, info = env.reset()
+            state_ndarray, info = self.env.reset()
             state = (
                 torch.tensor(state_ndarray, dtype=torch.float32).unsqueeze(0).to(self.device)
-            )
+            ).permute(0, 3, 1, 2)
 
             # Set variables
             episode_reward = 0.0
@@ -272,6 +272,7 @@ if __name__ == "__main__":
     if state_shape is None:
         raise ValueError("Observation space shape is None.")
     state_dim = int(state_shape[0])
+    state_channel = int(state_shape[2])
 
     # Get action spaces
     action_space = env.action_space
@@ -305,6 +306,7 @@ if __name__ == "__main__":
     # Initialize Actor-Critic network
     agent = ActorCriticAgent(
         state_dim=state_dim,
+        state_channel=state_channel,
         action_dim=action_dim,
         max_action=max_action,
         hidden_dim=hidden_dim,

@@ -24,6 +24,7 @@ class ActorCriticAgent:
     def __init__(
         self,
         state_dim: int,
+        state_channel: int,
         action_dim: int,
         max_action: float,
         hidden_dim: int,
@@ -37,6 +38,7 @@ class ActorCriticAgent:
         """
         Initializes the ActorCriticAgent.
         :param state_dim: The number of dimensions in the state space.
+        :param state_channel: The number of dimension in the state channel (e.g. RGB).
         :param action_dim: The number of dimensions in the action space.
         :param hidden_dim: The number of hidden units in the neural networks for actor and critic.
         :param lr: The learning rate for the optimizer.
@@ -47,6 +49,7 @@ class ActorCriticAgent:
         """
         self.actor_critic = ActorCritic(
             state_dim=state_dim,
+            state_channel=state_channel,
             action_dim=action_dim,
             max_action=max_action,
             hidden_dim=hidden_dim,
@@ -58,6 +61,7 @@ class ActorCriticAgent:
         self.gamma = gamma
         self.seed = seed
         self.state_dim = state_dim
+        self.state_channel = state_channel
         self.action_dim = action_dim
         self.value_coef = value_coef
         self.entropy_coef = entropy_coef
@@ -177,6 +181,7 @@ if __name__ == "__main__":
     if state_shape is None:
         raise ValueError("Observation space shape is None.")
     state_dim = int(state_shape[0])
+    state_channel = int(state_shape[2])
 
     # Get action spaces
     action_space = env.action_space
@@ -205,6 +210,7 @@ if __name__ == "__main__":
     # Initialize Actor-Critic network
     agent = ActorCriticAgent(
         state_dim=state_dim,
+        state_channel=state_channel,
         action_dim=action_dim,
         max_action=max_action,
         hidden_dim=hidden_dim,
@@ -217,7 +223,7 @@ if __name__ == "__main__":
 
     # Get state spaces
     state, info = env.reset()
-    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
+    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device).permute(0, 3, 1, 2)
 
     # This loop constitutes one epoch
     total_reward = 0.0
@@ -243,7 +249,7 @@ if __name__ == "__main__":
         # Convert to tensor
         next_state_tensor = (
             torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(device)
-        )
+        ).permute(0, 3, 1, 2)
         reward_tensor = (
             torch.tensor(reward, dtype=torch.float32).unsqueeze(0).to(device)
         )
