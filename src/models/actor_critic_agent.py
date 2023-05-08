@@ -6,9 +6,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from actor_critic import ActorCritic
 from torch.distributions import Categorical, Normal
 
+from actor_critic import ActorCritic
 from gae import GAE
 
 # Setting the seed for reproducibility
@@ -80,7 +80,7 @@ class ActorCriticAgent:
         terminated: torch.Tensor,
         action_distribution: Any,
         next_action_distribution: Any,
-        use_gae: Optional[bool]=True
+        use_gae: Optional[bool] = True,
     ) -> None:
         """
         Updates the ActorCriticAgent.
@@ -108,7 +108,9 @@ class ActorCriticAgent:
 
         # Discounted rewards
         if use_gae:
-            target_q_value = self.gae.calculate_gae_eligibility_trace(reward, q_value, next_q_value, terminated, normalize=True)
+            target_q_value = self.gae.calculate_gae_eligibility_trace(
+                reward, q_value, next_q_value, terminated, normalize=True
+            )
 
         else:
             target_q_value = reward + self.gamma * (ones - terminated) * next_q_value
@@ -281,4 +283,3 @@ if __name__ == "__main__":
         done = terminated or truncated
         if done:
             break
-

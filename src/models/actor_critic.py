@@ -5,9 +5,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.distributions import Categorical, Normal
+
 from neural_networks.actor_network import Actor
 from neural_networks.critic_network import Critic
-from torch.distributions import Categorical, Normal
 
 # Setting the seed for reproducibility
 torch.manual_seed(0)

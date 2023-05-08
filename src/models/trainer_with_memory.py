@@ -1,13 +1,12 @@
 # Importing necessary libraries
 import os
-from collections import deque
 from typing import Any, Tuple
 
 import numpy as np
 import torch
 
-from replay_buffer.replay_buffer import ReplayBuffer
 from actor_critic_agent import ActorCriticAgent
+from replay_buffer.replay_buffer import ReplayBuffer
 
 # Setting the seed for reproducibility
 torch.manual_seed(0)
@@ -69,7 +68,9 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         terminated = (
             torch.tensor(terminated, dtype=torch.float32).unsqueeze(0).to(self.device)
         )
-        truncated = torch.tensor(truncated, dtype=torch.float32).unsqueeze(0).to(self.device)
+        truncated = (
+            torch.tensor(truncated, dtype=torch.float32).unsqueeze(0).to(self.device)
+        )
 
         return state, reward, terminated, truncated
 
@@ -169,7 +170,9 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             # Get state spaces
             state_ndarray, info = self.env.reset()
             state = (
-                torch.tensor(state_ndarray, dtype=torch.float32).unsqueeze(0).to(self.device)
+                torch.tensor(state_ndarray, dtype=torch.float32)
+                .unsqueeze(0)
+                .to(self.device)
             )
 
             # Set variables
