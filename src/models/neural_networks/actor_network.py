@@ -22,28 +22,28 @@ class Actor(nn.Module):
     def __init__(
         self,
         state_dim: int,
+        state_channel: int,
         action_dim: int,
         max_action: float,
         hidden_dim: int = 256,
     ) -> None:
         """
         Initializes the Actor network architecture.
-        Args:
-            state_dim (int): Dimension of the state space.
-            action_dim (int): Dimension of the action space.
-            max_action (float): Maximum value of the action space.
-            hidden_dim (int): Size of the hidden layers. Default is 256.
+        :param state_dim: The number of dimensions in the state space.
+        :param state_channel: The number of dimension in the state channel (e.g. RGB).
+        :param action_dim: The number of dimensions in the action space.
+        :param max_action: Maximum value of the action space.
+        :param hidden_dim: The number of hidden units in the neural networks for actor and critic. Default is 256.
         """
-
         super(Actor, self).__init__()
         # Convolutional layers to extract features from the state's image
-        self.conv1 = nn.Conv2d(state_dim, 32, kernel_size=3, stride=2, padding=1)
+        self.conv1 = nn.Conv2d(state_channel, 32, kernel_size=3, stride=2, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
 
-        # Fully connected layers for policy approximation
+        # Fully connected layers for policy approximation (1 batch)
         self.fc_input_dims = self.calculate_conv_output_dims(
-            (state_dim, state_dim, action_dim)
+            (1, state_channel, state_dim, state_dim)
         )
         self.fc1 = nn.Linear(self.fc_input_dims, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
@@ -55,9 +55,9 @@ class Actor(nn.Module):
 
     def calculate_conv_output_dims(
         self,
-        input_dims: Tuple[int, int, int],
+        input_dims: Tuple[int, int, int, int],
     ) -> int:
-        state = torch.zeros(1, *input_dims)
+        state = torch.zeros(*input_dims)
         dims = self.conv1(state)
         dims = self.conv2(dims)
         dims = self.conv3(dims)
@@ -120,6 +120,7 @@ if __name__ == "__main__":
         raise ValueError("Observation space shape is not defined.")
 
     state_dim = int(state_shape[0])
+    state_channel = int(state_shape[2])
 
     # Get action spaces
     action_space = env.action_space
@@ -142,11 +143,16 @@ if __name__ == "__main__":
     high = torch.from_numpy(action_space.high).to(device)
 
     # Initialize Actor policy
-    actor = Actor(state_dim, action_dim, max_action).to(device)
+    actor = Actor(
+        state_dim=state_dim,
+        state_channel=state_channel,
+        action_dim=action_dim,
+        max_action=max_action,
+    ).to(device)
 
     # Get state spaces
     state, info = env.reset()
-    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
+    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device).permute(0, 3, 1, 2)
 
     # This loop constitutes one epoch
     total_reward = 0.0
@@ -176,7 +182,7 @@ if __name__ == "__main__":
 
         if next_state is not None:
             state_tensor = (
-                torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(device)
+                torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(device).permute(0, 3, 1, 2)
             )
 
         total_reward += float(reward)

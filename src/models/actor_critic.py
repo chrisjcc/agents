@@ -24,6 +24,7 @@ class ActorCritic(nn.Module):
     def __init__(
         self,
         state_dim: int,
+        state_channel: int,
         action_dim: int,
         max_action: float,
         device: Any,
@@ -31,10 +32,19 @@ class ActorCritic(nn.Module):
     ) -> None:
         super(ActorCritic, self).__init__()
         # Initialize Actor policy
-        self.actor = Actor(state_dim, action_dim, max_action).to(device)
+        self.actor = Actor(
+            state_dim=state_dim,
+            state_channel=state_channel,
+            action_dim=action_dim,
+            max_action=max_action,
+        ).to(device)
 
         # Initialize Critic
-        self.critic = Critic(state_dim=state_dim, action_dim=action_dim).to(device)
+        self.critic = Critic(
+            state_dim=state_dim,
+            state_channel=state_channel,
+            action_dim=action_dim,
+        ).to(device)
 
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, Normal, torch.Tensor]:
         """
@@ -98,15 +108,16 @@ if __name__ == "__main__":
     # We first check if state_shape is None. If it is None, we raise a ValueError.
     # Otherwise, we access the first element of state_shape using its index and
     # using the int() function.
-    state_dim = env.observation_space.shape[0]
+    state_dim = int(env.observation_space.shape[0])
+    state_channel = int(env.observation_space.shape[2])
 
     if state_dim is None:
         raise ValueError("Observation space shape is None.")
 
     # Get action spaces
     action_space = env.action_space
+    action_dim = int(action_space.shape[0])
     max_action = float(action_space.high[0])
-    action_dim = action_space.shape[0]
 
     low = torch.from_numpy(action_space.low).to(device)
     high = torch.from_numpy(action_space.high).to(device)
@@ -120,6 +131,7 @@ if __name__ == "__main__":
     # Initialize Actor-Critic network
     actor_critic = ActorCritic(
         state_dim=state_dim,
+        state_channel=state_channel,
         action_dim=action_dim,
         max_action=max_action,
         device=device,
@@ -130,7 +142,14 @@ if __name__ == "__main__":
 
     # Get state spaces
     state, info = env.reset()
-    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
+
+    # Convert state to shape (batch_size, channel, wdith, hight)
+    state_tensor = (
+        torch.tensor(state, dtype=torch.float32)
+        .unsqueeze(0)
+        .to(device)
+        .permute(0, 3, 1, 2)
+    )
 
     # This loop constitutes one epoch
     total_reward = 0.0
@@ -159,8 +178,12 @@ if __name__ == "__main__":
 
         # Convert to tensor
         next_state_tensor = (
-            torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(device)
+            torch.tensor(next_state, dtype=torch.float32)
+            .unsqueeze(0)
+            .to(device)
+            .permute(0, 3, 1, 2)
         )
+
         reward_tensor = (
             torch.tensor(reward, dtype=torch.float32).unsqueeze(0).to(device)
         )
@@ -213,7 +236,7 @@ if __name__ == "__main__":
         state_tensor = next_state_tensor
 
         total_reward += float(reward)
-        print(f"Q-value: {q_value.item():.2f}, Total reward: {total_reward:.2f}")
+        print(f"Total reward: {total_reward:.2f}")
 
         # Update if the environment is done
         done = terminated or truncated

@@ -87,4 +87,12 @@ Project Organization
 conda env create -f environment.yml
 ```
 
+## Unit Testing
+Run the following command to perform unit testing on individual components.
+```
+python -m unittest tests/test_actor.py
+python -m unittest tests/test_critic.py
+python -m unittest tests/test_actor_critic.py
+```
+
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
