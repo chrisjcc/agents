@@ -131,7 +131,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         """
         print("Collecting trajectory samples based on random actions.")
         # Fill the replay buffer before starting training
-        state_ndarray, info = env.reset()
+        state_ndarray, info = self.env.reset()
 
         # Convert the state to a PyTorch tensor
         state = torch.tensor(state_ndarray, dtype=torch.float32).unsqueeze(0)
@@ -167,7 +167,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             print(f"Episode: {episode}")
 
             # Get state spaces
-            state_ndarray, info = env.reset()
+            state_ndarray, info = self.env.reset()
             state = (
                 torch.tensor(state_ndarray, dtype=torch.float32).unsqueeze(0).to(self.device)
             )
