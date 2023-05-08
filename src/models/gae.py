@@ -1,5 +1,7 @@
-import torch
 from typing import Any
+
+import numpy as np
+import torch
 
 
 class GAE:
@@ -42,9 +44,6 @@ class GAE:
 
         return gae
 
-
-
-
     def generalized_advantage_estimate(
         self,
         value_old_state: torch.Tensor,
@@ -70,18 +69,21 @@ class GAE:
         advantage = torch.zeros(batch_size + 1)
 
         for t in reversed(range(batch_size)):
-            delta = reward[t] + (gamma * value_new_state[t] * done[t]) - value_old_state[t]
+            delta = (
+                reward[t] + (gamma * value_new_state[t] * done[t]) - value_old_state[t]
+            )
             advantage[t] = delta + (gamma * lamda * advantage[t + 1] * done[t])
 
-        #value_target = advantage[:batch_size] + value_old_state.squeeze()
+        # value_target = advantage[:batch_size] + value_old_state.squeeze()
 
         if normalize:
             advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
 
-        return advantage[:batch_size] #, value_target
+        return advantage[:batch_size]  # , value_target
 
-
-    def calculate_gae(self, rewards, values, next_value, masks, gamma=0.99, tau=0.95, normalize=True):
+    def calculate_gae(
+        self, rewards, values, next_value, masks, gamma=0.99, tau=0.95, normalize=True
+    ):
         """Calculate the Online Generalized Advantage Estimator (GAE).
 
         Args:
@@ -111,7 +113,16 @@ class GAE:
 
         return gae
 
-    def gae_eligibility_trace(self, rewards, values, next_value, masks, gamma=0.99, tau=0.95, normalize=True,):
+    def gae_eligibility_trace(
+        self,
+        rewards,
+        values,
+        next_value,
+        masks,
+        gamma=0.99,
+        tau=0.95,
+        normalize=True,
+    ):
         """
         Calculates the Online Generalized Advantage Estimation (GAE) using eligibility traces.
 
@@ -142,14 +153,25 @@ class GAE:
         for t in reversed(range(batch_size)):
             eligibility_trace[t] = gamma * tau * eligibility_trace[t] + masks[t]
 
-            gae[t] = eligibility_trace[t] * deltas[t] + gamma * tau * (1 - masks[t]) * gae[t]
+            gae[t] = (
+                eligibility_trace[t] * deltas[t] + gamma * tau * (1 - masks[t]) * gae[t]
+            )
 
         if normalize:
             gae = (gae - gae.mean()) / (gae.std() + 1e-8)
 
         return gae
 
-    def calculate_gae_eligibility_trace(self, rewards, values, next_value, masks, gamma=0.99, tau=0.95, normalize=True,):
+    def calculate_gae_eligibility_trace(
+        self,
+        rewards,
+        values,
+        next_value,
+        masks,
+        gamma=0.99,
+        tau=0.95,
+        normalize=True,
+    ):
         """
         Calculates the Generalized Advantage Estimate (GAE) using an eligibility trace.
 
@@ -167,11 +189,11 @@ class GAE:
         gae = torch.zeros_like(rewards)
         advantage = 0
 
-        for i in reversed(range(len(rewards)-1)):
+        for i in reversed(range(len(rewards) - 1)):
             delta = rewards[i] + gamma * next_value * masks[i] - values[i]
             advantage = delta + gamma * tau * advantage * masks[i]
             gae[i] = advantage[i]
-            next_value = values[i+1]
+            next_value = values[i + 1]
 
         if normalize:
             gae = (gae - gae.mean()) / (gae.std() + 1e-8)
@@ -179,6 +201,7 @@ class GAE:
         return gae
 
     def generalized_advantage_estimate(
+        self,
         value_old_state: torch.Tensor,
         value_new_state: torch.Tensor,
         reward: torch.Tensor,
@@ -195,11 +218,11 @@ class GAE:
         reward: agent reward of taking actions in the environment
         done: flag for end of episode
         """
-        # batch_size = done.shape[0]
+        batch_size = done.shape[0]
 
-        advantage = np.zeros(self.batch_size + 1)
+        advantage = np.zeros(batch_size + 1)
 
-        for t in reversed(range(self.batch_size)):
+        for t in reversed(range(batch_size)):
             delta = (
                 reward[t] + (gamma * value_new_state[t] * done[t]) - value_old_state[t]
             )
@@ -208,7 +231,6 @@ class GAE:
         value_target = advantage[:batch_size] + np.squeeze(value_old_state)
 
         return advantage[:batch_size], value_target
-
 
     def calculate_returns_advantages(self, rewards, values, gamma=0.99, lam=0.95):
         """Generalized Advantage Estimation"""
