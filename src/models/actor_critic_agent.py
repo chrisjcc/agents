@@ -93,7 +93,7 @@ class ActorCriticAgent:
         :param reward: The reward obtained for taking the action in the current state.
         :param next_state: The next state visited by taking the action in the current state.
         :param next_action: The next action taken within the environment.
-        :param done: A boolean indicating whether the episode has terminated.
+        :param terminated: A boolean indicating whether the episode has terminated.
         """
         # Evaluate Q-value of random state-action pair
         q_value = self.actor_critic.evaluate(state, action)
