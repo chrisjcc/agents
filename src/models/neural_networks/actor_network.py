@@ -22,28 +22,28 @@ class Actor(nn.Module):
     def __init__(
         self,
         state_dim: int,
+        state_channel: int,
         action_dim: int,
         max_action: float,
         hidden_dim: int = 256,
     ) -> None:
         """
         Initializes the Actor network architecture.
-        Args:
-            state_dim (int): Dimension of the state space.
-            action_dim (int): Dimension of the action space.
-            max_action (float): Maximum value of the action space.
-            hidden_dim (int): Size of the hidden layers. Default is 256.
+        :param state_dim: The number of dimensions in the state space.
+        :param state_channel: The number of dimension in the state channel (e.g. RGB).
+        :param action_dim: The number of dimensions in the action space.
+        :param max_action: Maximum value of the action space.
+        :param hidden_dim: The number of hidden units in the neural networks for actor and critic. Default is 256.
         """
-
         super(Actor, self).__init__()
         # Convolutional layers to extract features from the state's image
-        self.conv1 = nn.Conv2d(state_dim, 32, kernel_size=3, stride=2, padding=1)
+        self.conv1 = nn.Conv2d(state_channel, 32, kernel_size=3, stride=2, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
 
-        # Fully connected layers for policy approximation
+        # Fully connected layers for policy approximation (1 batch)
         self.fc_input_dims = self.calculate_conv_output_dims(
-            (state_dim, state_dim, action_dim)
+            (1, state_channel, state_dim, state_dim)
         )
         self.fc1 = nn.Linear(self.fc_input_dims, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
@@ -55,9 +55,9 @@ class Actor(nn.Module):
 
     def calculate_conv_output_dims(
         self,
-        input_dims: Tuple[int, int, int],
+        input_dims: Tuple[int, int, int, int],
     ) -> int:
-        state = torch.zeros(1, *input_dims)
+        state = torch.zeros(*input_dims)
         dims = self.conv1(state)
         dims = self.conv2(dims)
         dims = self.conv3(dims)
@@ -89,7 +89,9 @@ class Actor(nn.Module):
         mean = self.max_action * torch.tanh(self.mean_fc(x))
 
         # Predict the standard deviation of the normal distribution for selecting an action
-        std = F.softplus(self.std_fc(x)) + 1e-5  # Add a small constant to ensure positivity and numerical stability caused by 'std' being too close to zero.
+        std = (
+            F.softplus(self.std_fc(x)) + 1e-5
+        )  # Add a small constant to ensure positivity and numerical stability caused by 'std' being too close to zero.
 
         return mean, std
 
@@ -103,6 +105,7 @@ if __name__ == "__main__":
 
     # Name of environment to be used
     env_name: str = "CarRacing-v2"
+    max_episode_steps = 600  # default
 
     # Passing continuous=True converts the environment to use continuous action.
     # The continuous action space has 3 actions: [steering, gas, brake].
@@ -111,6 +114,7 @@ if __name__ == "__main__":
         domain_randomize=True,
         continuous=True,
         render_mode="human",
+        max_episode_steps=max_episode_steps,
     )
 
     # We first check if state_shape has a length greater than 0 using conditional statements.
@@ -120,6 +124,7 @@ if __name__ == "__main__":
         raise ValueError("Observation space shape is not defined.")
 
     state_dim = int(state_shape[0])
+    state_channel = int(state_shape[2])
 
     # Get action spaces
     action_space = env.action_space
@@ -135,52 +140,60 @@ if __name__ == "__main__":
     action_dim, max_action = None, None
     if action_shape is not None and len(action_shape) > 0:
         action_dim = int(action_shape[0])
-        max_action = int(action_high[0])
+        max_action = float(action_high[0])
 
     # Convert from nupy to tensor
     low = torch.from_numpy(action_space.low).to(device)
     high = torch.from_numpy(action_space.high).to(device)
 
     # Initialize Actor policy
-    actor = Actor(state_dim, action_dim, max_action).to(device)
+    actor = Actor(
+        state_dim=state_dim,
+        state_channel=state_channel,
+        action_dim=action_dim,
+        max_action=max_action,
+    ).to(device)
 
     # Get state spaces
-    state, info = env.reset()
-    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
+    state_ndarray, info = env.reset()
+    state = (
+        torch.tensor(state_ndarray, dtype=torch.float32)
+        .unsqueeze(0)
+        .to(device)
+        .permute(0, 3, 1, 2)
+    )
 
     # This loop constitutes one epoch
     total_reward = 0.0
     while True:
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         with torch.no_grad():
-            action_mean, action_std = actor(state_tensor)
+            action_mean, action_std = actor(state)
 
             # Select action by subsampling from action space distribution
             action_distribution = Normal(loc=action_mean, scale=action_std)  # type: ignore
-            action_tensor = action_distribution.sample()  # type: ignore
+            action = action_distribution.sample()  # type: ignore
 
-            # Rescale the action to the range of teh action space
-            rescaled_action = ((action_tensor + 1) / 2) * (high - low) + low
-
-            # Clip the rescaledaction to ensure it falls within the bounds of the action space
+            # Rescale, then clip the action to ensure it falls within the bounds of the action space
             clipped_action = torch.clamp(
-                rescaled_action,
-                low,
-                high,
+                (((action + 1) / 2) * (high - low) + low), low, high
             )
 
-        # Convert from numpy to torch tensors, and send to device
-        action = clipped_action.squeeze().cpu().detach().numpy()
+        next_state_ndarray, reward, terminated, truncated, info = env.step(
+            clipped_action.squeeze().cpu().detach().numpy()
+        )
 
-        next_state, reward, terminated, truncated, info = env.step(action)
-
-        if next_state is not None:
-            state_tensor = (
-                torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(device)
-            )
+        next_state = (
+            torch.tensor(next_state_ndarray, dtype=torch.float32)
+            .unsqueeze(0)
+            .to(device)
+            .permute(0, 3, 1, 2)
+        )
 
         total_reward += float(reward)
         print(f"Total reward: {total_reward:.2f}")
+
+        state = next_state
 
         # Update if the environment is done
         done = terminated or truncated

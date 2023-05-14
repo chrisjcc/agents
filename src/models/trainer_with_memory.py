@@ -134,8 +134,12 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         # Fill the replay buffer before starting training
         state_ndarray, info = self.env.reset()
 
-        # Convert the state to a PyTorch tensor
-        state = torch.tensor(state_ndarray, dtype=torch.float32).unsqueeze(0)
+        # Convert the state to a PyTorch tensor with shape (batch_size, channel, width, height)
+        state = (
+            torch.tensor(state_ndarray, dtype=torch.float32)
+            .unsqueeze(0)
+            .permute(0, 3, 1, 2)
+        )
 
         while len(self.memory) < self.memory.buffer.maxlen:
             done = False
@@ -156,6 +160,9 @@ class Trainer:  # responsible for running over the steps and collecting all the 
                 # Take a step in the environment with the chosen action
                 next_state, reward, terminated, truncated = self.env_step(action)
 
+                # Convert next state to shape (batch_size, channe, width, height)
+                next_state = next_state.permute(0, 3, 1, 2)
+
                 done = terminated or truncated
 
                 # Collect experience trajectory in replay buffer
@@ -169,10 +176,13 @@ class Trainer:  # responsible for running over the steps and collecting all the 
 
             # Get state spaces
             state_ndarray, info = self.env.reset()
+
+            # Convert next state to shape (batch_size, channe, width, height)
             state = (
                 torch.tensor(state_ndarray, dtype=torch.float32)
                 .unsqueeze(0)
                 .to(self.device)
+                .permute(0, 3, 1, 2)
             )
 
             # Set variables
@@ -198,6 +208,8 @@ class Trainer:  # responsible for running over the steps and collecting all the 
                 next_state, reward, terminated, truncated = self.env_step(
                     clipped_action
                 )
+                # Convert next state to shape (batch_size, channe, width, height)
+                next_state = next_state.permute(0, 3, 1, 2)
 
                 done = terminated or truncated
 
@@ -275,6 +287,7 @@ if __name__ == "__main__":
     if state_shape is None:
         raise ValueError("Observation space shape is None.")
     state_dim = int(state_shape[0])
+    state_channel = int(state_shape[2])
 
     # Get action spaces
     action_space = env.action_space
@@ -308,6 +321,7 @@ if __name__ == "__main__":
     # Initialize Actor-Critic network
     agent = ActorCriticAgent(
         state_dim=state_dim,
+        state_channel=state_channel,
         action_dim=action_dim,
         max_action=max_action,
         hidden_dim=hidden_dim,

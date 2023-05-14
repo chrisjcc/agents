@@ -24,6 +24,7 @@ class ActorCriticAgent:
     def __init__(
         self,
         state_dim: int,
+        state_channel: int,
         action_dim: int,
         max_action: float,
         hidden_dim: int,
@@ -37,6 +38,7 @@ class ActorCriticAgent:
         """
         Initializes the ActorCriticAgent.
         :param state_dim: The number of dimensions in the state space.
+        :param state_channel: The number of dimension in the state channel (e.g. RGB).
         :param action_dim: The number of dimensions in the action space.
         :param hidden_dim: The number of hidden units in the neural networks for actor and critic.
         :param lr: The learning rate for the optimizer.
@@ -47,6 +49,7 @@ class ActorCriticAgent:
         """
         self.actor_critic = ActorCritic(
             state_dim=state_dim,
+            state_channel=state_channel,
             action_dim=action_dim,
             max_action=max_action,
             hidden_dim=hidden_dim,
@@ -58,9 +61,11 @@ class ActorCriticAgent:
         self.gamma = gamma
         self.seed = seed
         self.state_dim = state_dim
+        self.state_channel = state_channel
         self.action_dim = action_dim
         self.value_coef = value_coef
         self.entropy_coef = entropy_coef
+        self.set_seed()
 
     def set_seed(self) -> None:
         """
@@ -89,8 +94,33 @@ class ActorCriticAgent:
         :param reward: The reward obtained for taking the action in the current state.
         :param next_state: The next state visited by taking the action in the current state.
         :param next_action: The next action taken within the environment.
-        :param done: A boolean indicating whether the episode has terminated.
+        :param terminated: A boolean indicating whether the episode has terminated.
         """
+
+        # Assert that state is not None
+        assert state is not None, "State cannot be None"
+
+        # Assert that action is not None
+        assert action is not None, "Action cannot be None"
+
+        # Assert that reward is not None
+        assert reward is not None, "Reward cannot be None"
+
+        # Assert that next_state is not None
+        assert next_state is not None, "Next state cannot be None"
+
+        # Assert that next_action is not None
+        assert next_action is not None, "Next action cannot be None"
+
+        # Assert that terminated is not None
+        assert terminated is not None, "Terminated cannot be None"
+
+        # Assert that action_distribution is not None
+        assert action_distribution is not None, "Action distribution cannot be None"
+
+        # Assert that next_action_distribution is not None
+        assert next_action_distribution is not None, "Next action distribution cannot be None"
+
         # Evaluate Q-value of random state-action pair
         q_value = self.actor_critic.evaluate(state, action)
 
@@ -156,19 +186,18 @@ if __name__ == "__main__":
     # Setup device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Setting the seed for reproducibility
-    torch.manual_seed(0)
-
-    # Name the environment to be sued
-    env_name: str = "CarRacing-v2"
-
+    # Name the environment to be used
     # Passing continuous=True converts the environment to use continuous action.
     # The continuous action space has 3 actions: [steering, gas, brake].
+    env_name: str = "CarRacing-v2"
+    max_episode_steps = 600  # default
+
     env: gym.Env[Any, Any] = gym.make(
         env_name,
         domain_randomize=True,
         continuous=True,
         render_mode="human",
+        max_episode_steps=max_episode_steps,
     )
 
     # We first check if state_shape is None. If it is None, we raise a ValueError.
@@ -179,6 +208,7 @@ if __name__ == "__main__":
     if state_shape is None:
         raise ValueError("Observation space shape is None.")
     state_dim = int(state_shape[0])
+    state_channel = int(state_shape[2])
 
     # Get action spaces
     action_space = env.action_space
@@ -199,6 +229,7 @@ if __name__ == "__main__":
     high = torch.from_numpy(action_space.high).to(device)
 
     # Actor-Critic hyperparameters
+    gamma = 0.99
     lr = 0.0001
     value_coef = 0.5
     entropy_coef = 0.01
@@ -207,77 +238,114 @@ if __name__ == "__main__":
     # Initialize Actor-Critic network
     agent = ActorCriticAgent(
         state_dim=state_dim,
+        state_channel=state_channel,
         action_dim=action_dim,
         max_action=max_action,
         hidden_dim=hidden_dim,
+        gamma=gamma,
         lr=lr,
         value_coef=value_coef,
         entropy_coef=entropy_coef,
         device=device,
     )
-    agent.set_seed()
 
     # Get state spaces
-    state, info = env.reset()
-    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
+    state_ndarray, info = env.reset()
+
+    # Convert next state to shape (batch_size, channe, width, height)
+    state = (
+        torch.tensor(state_ndarray, dtype=torch.float32)
+        .unsqueeze(0)
+        .to(device)
+        .permute(0, 3, 1, 2)
+    )
+
+    # Set variables
+    total_reward = 0.0
+    done = False
 
     # This loop constitutes one epoch
-    total_reward = 0.0
-    while True:
+    while not done:
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
-        with torch.no_grad():
-            # Obtain mean and std action given state
-            action_tensor, action_distribution = agent.actor_critic.sample_action(
-                state_tensor
-            )
+        # with torch.no_grad():
+        # Pass the state through the Actor model to obtain a probability distribution over the actions
+        action, action_distribution = agent.actor_critic.sample_action(state)
 
-            # Rescale, then clip the action to ensure it falls within the bounds of the action space
-            clipped_action = torch.clamp(
-                (((action_tensor + 1) / 2) * (high - low) + low), low, high
-            )
-
-        # Convert from numpy to torch tensors, and send to device
-        action = clipped_action.squeeze().cpu().detach().numpy()
-
-        # Take one step in the environment given the agent action
-        next_state, reward, terminated, truncated, info = env.step(action)
-
-        # Convert to tensor
-        next_state_tensor = (
-            torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(device)
+        # Rescale, then clip the action to ensure it falls within the bounds of the action space
+        clipped_action = torch.clamp(
+            (((action + 1) / 2) * (high - low) + low), low, high
         )
-        reward_tensor = (
-            torch.tensor(reward, dtype=torch.float32).unsqueeze(0).to(device)
+
+        # Take the action in the environment and observe the next state, reward, and done flag
+        (
+            next_state_ndarray,
+            reward_ndarray,
+            terminated_ndarray,
+            truncated_ndarray,
+            info,
+        ) = env.step(clipped_action.squeeze().cpu().detach().numpy())
+
+        # Convert next state to shape (batch_size, channe, width, height)
+        next_state = (
+            torch.tensor(next_state_ndarray, dtype=torch.float32)
+            .unsqueeze(0)
+            .to(device)
+            .permute(0, 3, 1, 2)
         )
-        terminated_tensor = (
-            torch.tensor(terminated, dtype=torch.float32).unsqueeze(0).to(device)
+
+        reward = (
+            torch.tensor(reward_ndarray, dtype=torch.float32).unsqueeze(0).to(device)
+        )
+        terminated = (
+            torch.tensor(terminated_ndarray, dtype=torch.float32)
+            .unsqueeze(0)
+            .to(device)
+        )
+        truncated = (
+            torch.tensor(truncated_ndarray, dtype=torch.float32).unsqueeze(0).to(device)
         )
 
         # Obtain mean and std of next action given next state
-        next_action_tensor, next_action_distribution = agent.actor_critic.sample_action(
-            next_state_tensor
+        next_action, next_action_distribution = agent.actor_critic.sample_action(
+            next_state
         )
 
         # Rescale, then clip the action to ensure it falls within the bounds of the action space
         clipped_next_action = torch.clamp(
-            (((next_action_tensor + 1) / 2) * (high - low) + low), low, high
+            (((next_action + 1) / 2) * (high - low) + low), low, high
         )
 
+        assert isinstance(state, torch.Tensor), "State is not of type torch.Tensor"
+        assert isinstance(
+            clipped_action, torch.Tensor
+        ), "Clipped action is not of type torch.Tensor"
+        assert isinstance(reward, torch.Tensor), "Reward is not of type torch.Tensor"
+        assert isinstance(
+            next_state, torch.Tensor
+        ), "Next state is not of type torch.Tensor"
+        assert isinstance(
+            terminated, torch.Tensor
+        ), "Terminated is not of type torch.Tensor"
+        assert isinstance(
+            truncated, torch.Tensor
+        ), "Truncated is not of type torch.Tensor"
+
         agent.update(
-            state_tensor,
+            state,
             clipped_action,
-            reward_tensor,
-            next_state_tensor,
+            reward,
+            next_state,
             clipped_next_action,
-            terminated_tensor,
+            terminated,
             action_distribution,
             next_action_distribution,
         )
 
-        state_tensor = next_state_tensor
-
-        total_reward += float(reward)
+        # Update total reward
+        total_reward += float(reward.item())
         print(f"Total reward: {total_reward:.2f}")
+
+        state = next_state
 
         # Update if the environment is done
         done = terminated or truncated
