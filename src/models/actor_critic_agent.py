@@ -96,6 +96,31 @@ class ActorCriticAgent:
         :param next_action: The next action taken within the environment.
         :param terminated: A boolean indicating whether the episode has terminated.
         """
+
+        # Assert that state is not None
+        assert state is not None, "State cannot be None"
+
+        # Assert that action is not None
+        assert action is not None, "Action cannot be None"
+
+        # Assert that reward is not None
+        assert reward is not None, "Reward cannot be None"
+
+        # Assert that next_state is not None
+        assert next_state is not None, "Next state cannot be None"
+
+        # Assert that next_action is not None
+        assert next_action is not None, "Next action cannot be None"
+
+        # Assert that terminated is not None
+        assert terminated is not None, "Terminated cannot be None"
+
+        # Assert that action_distribution is not None
+        assert action_distribution is not None, "Action distribution cannot be None"
+
+        # Assert that next_action_distribution is not None
+        assert next_action_distribution is not None, "Next action distribution cannot be None"
+
         # Evaluate Q-value of random state-action pair
         q_value = self.actor_critic.evaluate(state, action)
 
