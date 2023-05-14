@@ -65,13 +65,13 @@ class ActorCritic(nn.Module):
         :return: A tuple containing the selected action, its distribution and its estimated value.
         """
         # Sample action from actor network
-        # with torch.no_grad():
-        # Choose action using actor network
-        action_mean, action_std = self.actor(state)
+        with torch.no_grad():
+            # Choose action using actor network
+            action_mean, action_std = self.actor(state)
 
-        # Sample an action from the distribution
-        action_distribution = Normal(loc=action_mean, scale=action_std)  # type: ignore
-        action = action_distribution.sample()  # type: ignore
+            # Sample an action from the distribution
+            action_distribution = Normal(loc=action_mean, scale=action_std)  # type: ignore
+            action = action_distribution.sample()  # type: ignore
 
         return action, action_distribution
 
@@ -95,6 +95,7 @@ if __name__ == "__main__":
 
     # Name the environment to use
     env_name: str = "CarRacing-v2"
+    max_episode_steps = 600  # default
 
     # Passing continuous=True converts the environment to use continuous action.
     # The continuous action space has 3 actions: [steering, gas, brake].
@@ -103,6 +104,7 @@ if __name__ == "__main__":
         domain_randomize=True,
         continuous=True,
         render_mode="human",
+        max_episode_steps=max_episode_steps,
     )
 
     # We first check if state_shape is None. If it is None, we raise a ValueError.
@@ -141,11 +143,11 @@ if __name__ == "__main__":
     actor_critic_optimizer = optim.Adam(actor_critic.parameters(), lr=lr)
 
     # Get state spaces
-    state, info = env.reset()
+    state_ndarray, info = env.reset()
 
     # Convert state to shape (batch_size, channel, wdith, hight)
-    state_tensor = (
-        torch.tensor(state, dtype=torch.float32)
+    state = (
+        torch.tensor(state_ndarray, dtype=torch.float32)
         .unsqueeze(0)
         .to(device)
         .permute(0, 3, 1, 2)
@@ -157,9 +159,7 @@ if __name__ == "__main__":
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         with torch.no_grad():
             # Obtain mean and std action given state
-            action_tensor, action_distribution = actor_critic.sample_action(
-                state_tensor
-            )
+            action_tensor, action_distribution = actor_critic.sample_action(state)
 
             # Rescale, then clip the action to ensure it falls within the bounds of the action space
             clipped_action = torch.clamp(
@@ -167,43 +167,40 @@ if __name__ == "__main__":
             )
 
         # Evaluate Q-value of state-action pair
-        q_value = actor_critic.evaluate(state_tensor, clipped_action)
+        q_value = actor_critic.evaluate(state, clipped_action)
         print(f"Q-value(state,action): {q_value.item():.3f}")
 
-        # Convert from numpy to torch tensors, and send to device
-        action = clipped_action.squeeze().cpu().detach().numpy()
-
         # Take one step in the environment given the agent action
-        next_state, reward, terminated, truncated, info = env.step(action)
+        next_state_ndarray, reward_ndarray, terminated, truncated, info = env.step(
+            clipped_action.squeeze().cpu().detach().numpy()
+        )
 
         # Convert to tensor
-        next_state_tensor = (
-            torch.tensor(next_state, dtype=torch.float32)
+        next_state = (
+            torch.tensor(next_state_ndarray, dtype=torch.float32)
             .unsqueeze(0)
             .to(device)
             .permute(0, 3, 1, 2)
         )
 
-        reward_tensor = (
-            torch.tensor(reward, dtype=torch.float32).unsqueeze(0).to(device)
+        reward = (
+            torch.tensor(reward_ndarray, dtype=torch.float32).unsqueeze(0).to(device)
         )
 
         # Obtain mean and std of next action given next state
-        next_action_tensor, next_action_distribution = actor_critic.sample_action(
-            next_state_tensor
-        )
+        next_action, next_action_distribution = actor_critic.sample_action(next_state)
 
         # Rescale, then clip the action to ensure it falls within the bounds of the action space
         clipped_next_action = torch.clamp(
-            (((next_action_tensor + 1) / 2) * (high - low) + low), low, high
+            (((next_action + 1) / 2) * (high - low) + low), low, high
         )
 
         # Evaluate Q-value of next state-action pair
-        next_q_value = actor_critic.evaluate(next_state_tensor, clipped_next_action)
+        next_q_value = actor_critic.evaluate(next_state, clipped_next_action)
         print(f"Next Q-value(next_state,next_action): {q_value.item():.3f}")
 
         # Calculate target Q-value
-        target_q_value = reward_tensor + gamma * (1 - terminated) * next_q_value
+        target_q_value = reward + gamma * (1 - terminated) * next_q_value
         critic_loss = F.smooth_l1_loss(target_q_value, q_value)
 
         # Calculate advantage
@@ -233,7 +230,7 @@ if __name__ == "__main__":
         # Apply update rule to neural network weights
         actor_critic_optimizer.step()
 
-        state_tensor = next_state_tensor
+        state = next_state
 
         total_reward += float(reward)
         print(f"Total reward: {total_reward:.2f}")

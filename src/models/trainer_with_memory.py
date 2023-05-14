@@ -135,7 +135,11 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         state_ndarray, info = self.env.reset()
 
         # Convert the state to a PyTorch tensor with shape (batch_size, channel, width, height)
-        state = torch.tensor(state_ndarray, dtype=torch.float32).unsqueeze(0).permute(0, 3, 1, 2)
+        state = (
+            torch.tensor(state_ndarray, dtype=torch.float32)
+            .unsqueeze(0)
+            .permute(0, 3, 1, 2)
+        )
 
         while len(self.memory) < self.memory.buffer.maxlen:
             done = False
@@ -177,7 +181,8 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             state = (
                 torch.tensor(state_ndarray, dtype=torch.float32)
                 .unsqueeze(0)
-                .to(self.device).permute(0, 3, 1, 2)
+                .to(self.device)
+                .permute(0, 3, 1, 2)
             )
 
             # Set variables

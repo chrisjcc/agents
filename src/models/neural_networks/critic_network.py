@@ -94,14 +94,17 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Define the environment
+    env_name: str = "CarRacing-v2"
+    max_episode_steps = 600  # default
+
     # Passing continuous=True converts the environment to use continuous action.
     # The continuous action space has 3 actions: [steering, gas, brake].
-    env_name: str = "CarRacing-v2"
     env: gym.Env[Any, Any] = gym.make(
         env_name,
         domain_randomize=True,
         continuous=True,
         render_mode="human",
+        max_episode_steps=max_episode_steps,
     )
 
     # We first check if state_shape is None. If it is None, we raise a ValueError.
@@ -126,7 +129,7 @@ if __name__ == "__main__":
         raise ValueError("Action space shape is None.")
 
     action_dim = int(action_shape[0])
-    max_action = int(action_high[0])
+    max_action = float(action_high[0])
 
     # Initialize Critic
     critic = Critic(
@@ -134,17 +137,18 @@ if __name__ == "__main__":
     ).to(device)
 
     # Get state spaces
-    state, info = env.reset()
+    state_ndarray, info = env.reset()
 
     # Convert state numpy to tensor from shape [batch_size, height, width, channels] to [batch_size, channels, height, width]
     state_tensor = (
-        torch.tensor(state, dtype=torch.float32)
+        torch.tensor(state_ndarray, dtype=torch.float32)
         .unsqueeze(0)
         .to(device)
         .permute(0, 3, 1, 2)
     )
 
     # This loop constitutes one epoch
+    total_reward = 0.0
     while True:
         # Sample random action
         action = env.action_space.sample()
@@ -159,14 +163,19 @@ if __name__ == "__main__":
         print(f"Q-value: {q_value.item():.3f}")
 
         # Take a step in the environment given sampled action
-        next_state, reward, terminated, truncated, info = env.step(action)
+        next_state_ndarray, reward, terminated, truncated, info = env.step(action)
 
-        state_tensor = (
-            torch.tensor(next_state, dtype=torch.float32)
+        next_state = (
+            torch.tensor(next_state_ndarray, dtype=torch.float32)
             .unsqueeze(0)
             .to(device)
             .permute(0, 3, 1, 2)
         )
+
+        total_reward += float(reward)
+        print(f"Total reward: {total_reward:.2f}")
+
+        state = next_state
 
         # Update if the environment is done
         done = terminated or truncated

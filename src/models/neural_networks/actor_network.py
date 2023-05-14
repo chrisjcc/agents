@@ -89,7 +89,9 @@ class Actor(nn.Module):
         mean = self.max_action * torch.tanh(self.mean_fc(x))
 
         # Predict the standard deviation of the normal distribution for selecting an action
-        std = F.softplus(self.std_fc(x)) + 1e-5  # Add a small constant to ensure positivity and numerical stability caused by 'std' being too close to zero.
+        std = (
+            F.softplus(self.std_fc(x)) + 1e-5
+        )  # Add a small constant to ensure positivity and numerical stability caused by 'std' being too close to zero.
 
         return mean, std
 
@@ -103,6 +105,7 @@ if __name__ == "__main__":
 
     # Name of environment to be used
     env_name: str = "CarRacing-v2"
+    max_episode_steps = 600  # default
 
     # Passing continuous=True converts the environment to use continuous action.
     # The continuous action space has 3 actions: [steering, gas, brake].
@@ -111,6 +114,7 @@ if __name__ == "__main__":
         domain_randomize=True,
         continuous=True,
         render_mode="human",
+        max_episode_steps=max_episode_steps,
     )
 
     # We first check if state_shape has a length greater than 0 using conditional statements.
@@ -136,7 +140,7 @@ if __name__ == "__main__":
     action_dim, max_action = None, None
     if action_shape is not None and len(action_shape) > 0:
         action_dim = int(action_shape[0])
-        max_action = int(action_high[0])
+        max_action = float(action_high[0])
 
     # Convert from nupy to tensor
     low = torch.from_numpy(action_space.low).to(device)
@@ -151,42 +155,45 @@ if __name__ == "__main__":
     ).to(device)
 
     # Get state spaces
-    state, info = env.reset()
-    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device).permute(0, 3, 1, 2)
+    state_ndarray, info = env.reset()
+    state = (
+        torch.tensor(state_ndarray, dtype=torch.float32)
+        .unsqueeze(0)
+        .to(device)
+        .permute(0, 3, 1, 2)
+    )
 
     # This loop constitutes one epoch
     total_reward = 0.0
     while True:
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         with torch.no_grad():
-            action_mean, action_std = actor(state_tensor)
+            action_mean, action_std = actor(state)
 
             # Select action by subsampling from action space distribution
             action_distribution = Normal(loc=action_mean, scale=action_std)  # type: ignore
-            action_tensor = action_distribution.sample()  # type: ignore
+            action = action_distribution.sample()  # type: ignore
 
-            # Rescale the action to the range of teh action space
-            rescaled_action = ((action_tensor + 1) / 2) * (high - low) + low
-
-            # Clip the rescaledaction to ensure it falls within the bounds of the action space
+            # Rescale, then clip the action to ensure it falls within the bounds of the action space
             clipped_action = torch.clamp(
-                rescaled_action,
-                low,
-                high,
+                (((action + 1) / 2) * (high - low) + low), low, high
             )
 
-        # Convert from numpy to torch tensors, and send to device
-        action = clipped_action.squeeze().cpu().detach().numpy()
+        next_state_ndarray, reward, terminated, truncated, info = env.step(
+            clipped_action.squeeze().cpu().detach().numpy()
+        )
 
-        next_state, reward, terminated, truncated, info = env.step(action)
-
-        if next_state is not None:
-            state_tensor = (
-                torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(device).permute(0, 3, 1, 2)
-            )
+        next_state = (
+            torch.tensor(next_state_ndarray, dtype=torch.float32)
+            .unsqueeze(0)
+            .to(device)
+            .permute(0, 3, 1, 2)
+        )
 
         total_reward += float(reward)
         print(f"Total reward: {total_reward:.2f}")
+
+        state = next_state
 
         # Update if the environment is done
         done = terminated or truncated
