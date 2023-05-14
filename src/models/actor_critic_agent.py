@@ -85,6 +85,8 @@ class ActorCriticAgent:
         terminated: torch.Tensor,
         action_distribution: Any,
         next_action_distribution: Any,
+        indices: torch.Tensor,
+        weight: torch.Tensor,
         use_gae: Optional[bool] = True,
     ) -> None:
         """
@@ -136,6 +138,17 @@ class ActorCriticAgent:
         q_value = torch.squeeze(q_value, dim=1)
         next_q_value = torch.squeeze(next_q_value, dim=1)
 
+
+
+        # Check indices validity
+        if len(q_value) > 1 and len(next_q_value) > 1:
+            # Apply indices and weights
+            q_value = q_value[indices]
+            next_q_value = next_q_value[indices]
+            weight = weight[indices]
+
+
+
         # Discounted rewards
         if use_gae:
             target_q_value = self.gae.calculate_gae_eligibility_trace(
@@ -145,7 +158,8 @@ class ActorCriticAgent:
         else:
             target_q_value = reward + self.gamma * (ones - terminated) * next_q_value
 
-        critic_loss = F.smooth_l1_loss(target_q_value, q_value)
+        #critic_loss = F.smooth_l1_loss(target_q_value, q_value)
+        critic_loss = torch.mean(weight * F.smooth_l1_loss(target_q_value, q_value))
 
         # Calculate advantage (in this case specifically temporal-difference)
         advantage = target_q_value - q_value
@@ -156,10 +170,18 @@ class ActorCriticAgent:
         # Calculate actor loss
         action_log_prob = action_distribution.log_prob(action)
 
+        # Check indices validity
+        if len(action_log_prob) > 1:
+            action_log_prob = action_log_prob[indices]
+
+        #action_log_prob = action_log_prob.reshape(-1, action_log_prob.size(0))
+        #action_log_prob = action_log_prob[indices]
+
         # TODO: improve this step (is it necessary??)
         action_log_prob = action_log_prob.reshape(-1, action_log_prob.size(0))
 
-        actor_loss = -torch.mean(action_log_prob * advantage)
+        #actor_loss = -torch.mean(action_log_prob * advantage)
+        actor_loss = -torch.mean(weight * action_log_prob * advantage)
 
         # Calculate total loss
         loss = self.value_coef * critic_loss + actor_loss - self.entropy_coef * entropy

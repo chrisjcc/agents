@@ -6,7 +6,8 @@ import numpy as np
 import torch
 
 from actor_critic_agent import ActorCriticAgent
-from replay_buffer.replay_buffer import ReplayBuffer
+#from replay_buffer.replay_buffer import ReplayBuffer
+from replay_buffer.per import PrioritizedReplayBuffer
 
 # Setting the seed for reproducibility
 torch.manual_seed(0)
@@ -22,7 +23,8 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         self,
         env: Any,
         agent: ActorCriticAgent,
-        memory: ReplayBuffer,
+        #memory: ReplayBuffer,
+        memory: PrioritizedReplayBuffer,
         max_episodes: int,
         low: Any,
         high: Any,
@@ -82,7 +84,9 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         :return: The next state, reward, and whether the episode is done.
         """
         # Sample a batch from the replay buffer
-        state, action, reward, next_state, done = self.memory.sample(self.batch_size)
+        #state, action, reward, next_state, done = self.memory.sample(self.batch_size)
+        state, action, reward, next_state, done, indices, weight = self.memory.sample(self.batch_size)
+
 
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         # with torch.no_grad():
@@ -105,10 +109,10 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         # TODO: improve this step (couldn't this be handled earlier)
         state = torch.squeeze(state, dim=1)
         action = torch.squeeze(action, dim=1)
-        reward = torch.squeeze(reward, dim=1)
+        #reward = torch.squeeze(reward, dim=1)
         next_state = torch.squeeze(next_state, dim=1)
         clipped_next_action = torch.squeeze(clipped_next_action, dim=1)
-        done = torch.squeeze(done, dim=1)
+        #done = torch.squeeze(done, dim=1)
 
         # Update the neural networks
         self.agent.update(
@@ -120,6 +124,8 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             done,
             action_distribution,
             next_action_distribution,
+            indices, 
+            weight 
         )
 
     def train(self) -> None:
@@ -269,7 +275,7 @@ if __name__ == "__main__":
     # The continuous action space has 3 actions: [steering, gas, brake].
     env_name: str = "CarRacing-v2"
     max_episode_steps = 600  # default
-    num_episodes = 10
+    num_episodes = 2 #10
 
     env: gym.Env[Any, Any] = gym.make(
         env_name,
@@ -333,7 +339,8 @@ if __name__ == "__main__":
     )
 
     # Initialize the replay buffer
-    memory = ReplayBuffer(buffer_size=1024)
+    #memory = ReplayBuffer(buffer_size=1024)
+    memory = PrioritizedReplayBuffer(capacity=1024, alpha=0.99)
 
     # Create trainer to train agent
     trainer = Trainer(
