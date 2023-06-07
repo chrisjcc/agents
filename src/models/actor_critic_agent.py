@@ -139,14 +139,13 @@ class ActorCriticAgent:
         next_q_value = torch.squeeze(next_q_value, dim=1)
 
 
-
         # Check indices validity
         if len(q_value) > 1 and len(next_q_value) > 1:
             # Apply indices and weights
-            q_value = q_value[indices]
-            next_q_value = next_q_value[indices]
-            weight = weight[indices]
-
+            # To ensures that the indices are wrapped within the valid range
+            q_value = q_value[indices % len(q_value)]
+            next_q_value = next_q_value[indices % len(next_q_value)]
+            weight = weight[indices % len(weight)]
 
 
         # Discounted rewards
@@ -172,7 +171,8 @@ class ActorCriticAgent:
 
         # Check indices validity
         if len(action_log_prob) > 1:
-            action_log_prob = action_log_prob[indices]
+            # To ensures that the indices are wrapped within the valid range
+            action_log_prob = action_log_prob[indices % len(action_log_prob)]
 
         #action_log_prob = action_log_prob.reshape(-1, action_log_prob.size(0))
         #action_log_prob = action_log_prob[indices]
