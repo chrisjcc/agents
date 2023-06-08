@@ -1,10 +1,19 @@
+import os
+import sys
 import unittest
 
 import gymnasium as gym
 import torch
 
+# Add the directory containing actor_critic_agent.py to the Python module search path
+module_dir = os.path.dirname(os.path.abspath(__file__))
+actor_critic_agent_dir = os.path.join(
+    module_dir, ".."
+)  # Adjust the relative path if needed
+sys.path.append(actor_critic_agent_dir)
+
 from actor_critic_agent import ActorCriticAgent
-from replay_buffer.replay_buffer import ReplayBuffer
+from replay_buffer.per import PrioritizedReplayBuffer
 from trainer_with_memory import Trainer
 
 
@@ -31,7 +40,7 @@ class TestTrainer(unittest.TestCase):
             entropy_coef=0.01,
             device=self.device,
         )
-        self.memory = ReplayBuffer(buffer_size=1024)
+        self.memory = PrioritizedReplayBuffer(capacity=1024, alpha=0.99)
         self.trainer = Trainer(
             env=self.env,
             agent=self.agent,
