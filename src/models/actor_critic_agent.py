@@ -121,7 +121,9 @@ class ActorCriticAgent:
         assert action_distribution is not None, "Action distribution cannot be None"
 
         # Assert that next_action_distribution is not None
-        assert next_action_distribution is not None, "Next action distribution cannot be None"
+        assert (
+            next_action_distribution is not None
+        ), "Next action distribution cannot be None"
 
         # Evaluate Q-value of random state-action pair
         q_value = self.actor_critic.evaluate(state, action)
@@ -138,7 +140,6 @@ class ActorCriticAgent:
         q_value = torch.squeeze(q_value, dim=1)
         next_q_value = torch.squeeze(next_q_value, dim=1)
 
-
         # Check indices validity
         if len(q_value) > 1 and len(next_q_value) > 1:
             # Apply indices and weights
@@ -146,7 +147,6 @@ class ActorCriticAgent:
             q_value = q_value[indices % len(q_value)]
             next_q_value = next_q_value[indices % len(next_q_value)]
             weight = weight[indices % len(weight)]
-
 
         # Discounted rewards
         if use_gae:
@@ -157,7 +157,7 @@ class ActorCriticAgent:
         else:
             target_q_value = reward + self.gamma * (ones - terminated) * next_q_value
 
-        #critic_loss = F.smooth_l1_loss(target_q_value, q_value)
+        # critic_loss = F.smooth_l1_loss(target_q_value, q_value)
         critic_loss = torch.mean(weight * F.smooth_l1_loss(target_q_value, q_value))
 
         # Calculate advantage (in this case specifically temporal-difference)
@@ -174,13 +174,13 @@ class ActorCriticAgent:
             # To ensures that the indices are wrapped within the valid range
             action_log_prob = action_log_prob[indices % len(action_log_prob)]
 
-        #action_log_prob = action_log_prob.reshape(-1, action_log_prob.size(0))
-        #action_log_prob = action_log_prob[indices]
+        # action_log_prob = action_log_prob.reshape(-1, action_log_prob.size(0))
+        # action_log_prob = action_log_prob[indices]
 
         # TODO: improve this step (is it necessary??)
         action_log_prob = action_log_prob.reshape(-1, action_log_prob.size(0))
 
-        #actor_loss = -torch.mean(action_log_prob * advantage)
+        # actor_loss = -torch.mean(action_log_prob * advantage)
         actor_loss = -torch.mean(weight * action_log_prob * advantage)
 
         # Calculate total loss

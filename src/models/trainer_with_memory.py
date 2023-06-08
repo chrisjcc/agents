@@ -92,9 +92,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
 
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         # with torch.no_grad():
-        _, action_distribution = self.agent.actor_critic.sample_action(
-            state.squeeze(1)
-        )
+        _, action_distribution = self.agent.actor_critic.sample_action(state.squeeze(1))
 
         # Obtain mean and std of next action given next state
         next_action, next_action_distribution = self.agent.actor_critic.sample_action(
