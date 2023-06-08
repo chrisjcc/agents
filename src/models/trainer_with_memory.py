@@ -94,7 +94,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         # with torch.no_grad():
         _, action_distribution = self.agent.actor_critic.sample_action(
             state.squeeze(1)
-        )  # TODO: THINK ABOUT!!
+        )
 
         # Obtain mean and std of next action given next state
         next_action, next_action_distribution = self.agent.actor_critic.sample_action(
@@ -208,7 +208,6 @@ class Trainer:  # responsible for running over the steps and collecting all the 
                 # Pass the state through the Actor model to obtain a probability distribution over the actions
                 action, action_probs = self.agent.actor_critic.sample_action(state)
 
-                # TODO: do I need to rescale and clip the action??
                 # Rescale the action to the range of the action space
                 rescaled_action = ((action + 1) / 2) * (self.high - self.low) + self.low
 
@@ -280,7 +279,7 @@ if __name__ == "__main__":
     # The continuous action space has 3 actions: [steering, gas, brake].
     env_name: str = "CarRacing-v2"
     max_episode_steps = 600  # default
-    num_episodes = 2  # 10
+    num_episodes = 10
 
     env: gym.Env[Any, Any] = gym.make(
         env_name,
