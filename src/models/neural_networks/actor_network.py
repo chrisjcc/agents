@@ -73,6 +73,9 @@ class Actor(nn.Module):
             A tuple with the predicted mean and standard deviation of the normal distribution.
         """
 
+        # Scale the input state tensor to the appropriate range (e.g., [0, 1] or [-1, 1])
+        state = state / 255.0  # Assuming the original range is [0, 255] for color channels
+
         # Extract features from the state's image
         x = F.relu(self.conv1(state))
         x = F.relu(self.conv2(x))

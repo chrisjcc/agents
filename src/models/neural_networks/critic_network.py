@@ -1,4 +1,3 @@
-# Importing necessary libraries
 from typing import Any, Tuple
 
 import numpy as np
@@ -31,8 +30,10 @@ class Critic(nn.Module):
         self.fc_input_dims = self.calculate_conv_output_dims(
             (1, state_channel, state_dim, state_dim)
         )
-        self.fc1 = nn.Linear(action_dim, hidden_dim)  # for critic
-        self.fc2 = nn.Linear(self.fc_input_dims + hidden_dim, hidden_dim)  # for Q-value
+        self.fc0 = nn.Linear(self.fc_input_dims + action_dim, hidden_dim)  # for Q-value
+        # self.fc1 = nn.Linear(action_dim, hidden_dim)  # for critic
+        self.fc1 = nn.Linear(self.fc_input_dims, hidden_dim)  # for critic
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)  # for Q-value
         self.fc3 = nn.Linear(hidden_dim, 1)  # for critic
 
     def calculate_conv_output_dims(
@@ -46,15 +47,18 @@ class Critic(nn.Module):
 
         return int(torch.prod(torch.tensor(dims.size())))
 
-    def forward(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+    def forward(self, state: torch.Tensor) -> torch.Tensor:
         """
-        Perform a forward pass through the Critic network, given an input state and action.
+        Perform a forward pass through the Critic network, given an input state.
         Args:
         - state: A tensor of shape (batch_size, state_channel, height, width)
-        - action: A tensor of shape (batch_size, action_dim)
         Returns:
-        - A tensor of shape (batch_size,) containing the Q-value of the input state-action pair.
+        - A tensor of shape (batch_size,) containing the Q-value of the input state.
         """
+
+        # Scale the input state tensor to the appropriate range (e.g., [0, 1] or [-1, 1])
+        state = state / 255.0  # Assuming the original range is [0, 255] for color channels
+
         # Extract features from the state's image
         x = F.relu(self.conv1(state))
         x = F.relu(self.conv2(x))
@@ -63,12 +67,7 @@ class Critic(nn.Module):
         # Flatten the 3D features tensor to make it suitable for feed-forward layers
         x = x.reshape(x.size(0), -1)
 
-        # reshape to (batch_size, action_dim)
-        action = action.view(-1, action.size(-1))
-        action = F.relu(self.fc1(action))  # apply linear layer to action
-
-        x = torch.cat([x, action], dim=1)  # concatenate action and feature tensors
-
+        x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
 
@@ -83,7 +82,26 @@ class Critic(nn.Module):
         Returns:
         - A tensor of shape (batch_size,) containing the Q-value of the input state-action pair.
         """
-        return self.forward(state, action)
+
+        # Scale the input state tensor to the appropriate range (e.g., [0, 1] or [-1, 1])
+        state = state / 255.0  # Assuming the original range is [0, 255] for color channels
+
+        # Extract features from the state's image
+        x = F.relu(self.conv1(state))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+
+        # Flatten the 3D features tensor to make it suitable for feed-forward layers
+        x = x.reshape(x.size(0), -1)
+
+        x = torch.cat([x, action], dim=1)  # concatenate action and feature tensors
+
+        # x = F.relu(self.fc1(x))
+        x = F.relu(self.fc0(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+
+        return x
 
 
 if __name__ == "__main__":
@@ -140,7 +158,7 @@ if __name__ == "__main__":
     state_ndarray, info = env.reset()
 
     # Convert state numpy to tensor from shape [batch_size, height, width, channels] to [batch_size, channels, height, width]
-    state_tensor = (
+    state = (
         torch.tensor(state_ndarray, dtype=torch.float32)
         .unsqueeze(0)
         .to(device)
@@ -151,19 +169,23 @@ if __name__ == "__main__":
     total_reward = 0.0
     while True:
         # Sample random action
-        action = env.action_space.sample()
+        action_ndarray = env.action_space.sample()
 
         # Convert from numpy to torch tensors, and send to device
-        action_tensor = (
-            torch.tensor(action, dtype=torch.float32).unsqueeze(0).to(device)
+        action = (
+            torch.tensor(action_ndarray, dtype=torch.float32).unsqueeze(0).to(device)
         )
 
         # Evaluate Q-value of random state-action pair
-        q_value = critic.evaluate(state_tensor, action_tensor)
+        q_value = critic.evaluate(state, action)
+        state_value = critic(state)
         print(f"Q-value: {q_value.item():.3f}")
+        print(f"State-value: {state_value.item():.3f}")
 
         # Take a step in the environment given sampled action
-        next_state_ndarray, reward, terminated, truncated, info = env.step(action)
+        next_state_ndarray, reward, terminated, truncated, info = env.step(
+            action_ndarray
+        )
 
         next_state = (
             torch.tensor(next_state_ndarray, dtype=torch.float32)

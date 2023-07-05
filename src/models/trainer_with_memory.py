@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from actor_critic_agent import ActorCriticAgent
-#from replay_buffer.replay_buffer import ReplayBuffer
+from replay_buffer.replay_buffer import ReplayBuffer
 from replay_buffer.per import PrioritizedReplayBuffer
 
 # Setting the seed for reproducibility
@@ -23,8 +23,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         self,
         env: Any,
         agent: ActorCriticAgent,
-        #memory: ReplayBuffer,
-        memory: PrioritizedReplayBuffer,
+        memory: Any, #ReplayBuffer, #PrioritizedReplayBuffer,
         max_episodes: int,
         low: Any,
         high: Any,
@@ -275,7 +274,7 @@ if __name__ == "__main__":
     # The continuous action space has 3 actions: [steering, gas, brake].
     env_name: str = "CarRacing-v2"
     max_episode_steps = 600  # default
-    num_episodes = 2 #10
+    num_episodes = 10
 
     env: gym.Env[Any, Any] = gym.make(
         env_name,
