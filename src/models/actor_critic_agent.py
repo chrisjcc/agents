@@ -7,13 +7,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical, Normal
-
-from torch.optim.lr_scheduler import StepLR #, LambdaLR, MultiStepLR, ExponentialLR
+from torch.optim.lr_scheduler import StepLR  # , LambdaLR, MultiStepLR, ExponentialLR
 
 from actor_critic import ActorCritic
-from gae import GAE
-
 from data_logger import DataLogger
+from gae import GAE
 
 # Setting the seed for reproducibility
 torch.manual_seed(0)
@@ -102,7 +100,7 @@ class ActorCriticAgent:
         indices: torch.Tensor,
         weight: torch.Tensor,
         step: int,
-        use_gae: Optional[bool] = False, #True,
+        use_gae: Optional[bool] = False,  # True,
     ) -> None:
         """
         Updates the ActorCriticAgent.
@@ -180,11 +178,7 @@ class ActorCriticAgent:
         if use_gae:
             # Calculate the advantages using GAE with eligibility trace
             advantage = self.gae.calculate_gae_eligibility_trace(
-                reward,
-                q_value,
-                next_q_value,
-                terminated,
-                normalize=True
+                reward, q_value, next_q_value, terminated, normalize=True
             )
 
             # The target-Q value can be calculated as follows:
@@ -231,7 +225,9 @@ class ActorCriticAgent:
         action_log_prob = action_distribution.log_prob(action)
 
         # Make sure the shape of weight matches the shape of action_log_prob
-        assert weight.shape == action_log_prob.shape, "Weight and action_log_prob shape mismatch."
+        assert (
+            weight.shape == action_log_prob.shape
+        ), "Weight and action_log_prob shape mismatch."
 
         # Compute the actor loss, taking into account the importance sampling factor for weighting
         actor_loss = -torch.mean(weight * action_log_prob * advantage)
@@ -453,7 +449,7 @@ if __name__ == "__main__":
             action_distribution=action_distribution,
             next_action_distribution=next_action_distribution,
             indices=indices,
-            weight=weight
+            weight=weight,
         )
 
         # Update total reward

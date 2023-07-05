@@ -6,8 +6,8 @@ import numpy as np
 import torch
 
 from actor_critic_agent import ActorCriticAgent
-from replay_buffer.replay_buffer import ReplayBuffer
 from replay_buffer.per import PrioritizedReplayBuffer
+from replay_buffer.replay_buffer import ReplayBuffer
 
 # Setting the seed for reproducibility
 torch.manual_seed(0)
@@ -23,7 +23,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         self,
         env: Any,
         agent: ActorCriticAgent,
-        memory: Any, #ReplayBuffer, #PrioritizedReplayBuffer,
+        memory: Any,  # ReplayBuffer, #PrioritizedReplayBuffer,
         max_episodes: int,
         low: Any,
         high: Any,
