@@ -1,6 +1,19 @@
+import os
+import sys
 import unittest
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.distributions import Categorical, Normal
+
+# Add the directory to the Python module search path
+module_dir = os.path.dirname(os.path.abspath(__file__))
+actor_critic_agent_dir = os.path.join(
+    module_dir, ".."
+)  # Adjust the relative path if needed
+sys.path.append(actor_critic_agent_dir)
 
 from actor_critic import ActorCritic
 
@@ -38,6 +51,7 @@ class TestActorCritic(unittest.TestCase):
         action = torch.randn(1, self.action_dim)
         q_value = self.actor_critic.evaluate(state, action)
         self.assertEqual(q_value.shape, (1, 1))
+
 
 if __name__ == "__main__":
     unittest.main()
