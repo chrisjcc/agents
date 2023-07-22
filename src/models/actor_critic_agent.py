@@ -1,5 +1,5 @@
 # Importing necessary libraries
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 import numpy as np
 import torch
@@ -7,14 +7,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical, Normal
-from torch.optim.lr_scheduler import StepLR  # , LambdaLR, MultiStepLR, ExponentialLR
 
-from actor_critic import ActorCritic
-from data_logger import DataLogger
+from torch.optim.lr_scheduler import StepLR #, LambdaLR, MultiStepLR, ExponentialLR
+
+from actor_critic import ActorCriticModel
 from gae import GAE
 
+from data_logger import DataLogger
+
 # Setting the seed for reproducibility
-torch.manual_seed(0)
+torch.manual_seed(42)
 
 
 # Define the ActorCritic Agent
@@ -32,8 +34,9 @@ class ActorCriticAgent:
         hidden_dim: int,
         device: Any,
         data_logger: Any,
-        lr_step_size: int,
+        lr_step_size: int, # e.g. max_steps_per_episode
         lr: float = 0.01,
+        lr_gamma: float = 0.1,
         gamma: float = 0.99,
         seed: int = 42,
         value_coef: float = 0.5,
@@ -51,7 +54,7 @@ class ActorCriticAgent:
         :param value_coef: The magnitude of the critic loss.
         :param entropy_coef: The magnitude of the entropy regularization.
         """
-        self.actor_critic = ActorCritic(
+        self.actor_critic = ActorCriticModel(
             state_dim=state_dim,
             state_channel=state_channel,
             action_dim=action_dim,
@@ -64,7 +67,7 @@ class ActorCriticAgent:
         self.optimizer = optim.Adam(self.actor_critic.parameters(), lr=lr)
 
         # Create the learning rate scheduler
-        self.scheduler = StepLR(self.optimizer, step_size=lr_step_size, gamma=0.5)
+        self.scheduler = StepLR(self.optimizer, step_size=lr_step_size, gamma=lr_gamma)
 
         # Create an instance of GAE
         self.gae = GAE(gamma=0.99, lambda_=0.95)
@@ -99,9 +102,8 @@ class ActorCriticAgent:
         next_action_distribution: Any,
         indices: torch.Tensor,
         weight: torch.Tensor,
-        step: int,
-        use_gae: Optional[bool] = False,  # True,
-    ) -> None:
+        use_gae: Optional[bool] = True,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Updates the ActorCriticAgent.
         :param state: The current state of the environment.
@@ -144,21 +146,44 @@ class ActorCriticAgent:
         # Assert that weight is not None
         assert weight is not None, "Weight cannot be None"
 
-        # Unsqueeze the following tensor to have the correct [batch_size, num_actions], e.g. [64, 3]
-        reward = reward.unsqueeze(1)
-        terminated = terminated.unsqueeze(1)
+        # The concept of "returns" is used to estimate the cumulative future rewards
+        # that an agent can expect to receive from a particular state-action sequence.
+        # It provides a measure of the expected long-term value of taking a specific action in a given state.
+        # Using returns instead of just the immediate reward value allows the agent to consider the future consequences of its actions.
+        # Returns are calculated by summing up the discounted rewards from the current time step to the end of the episode.
+        # The discount factor, typically denoted as gamma (γ), is a value between 0 and 1 that determines
+        # the importance of immediate rewards compared to future rewards.
+        # A higher gamma value places more emphasis on long-term rewards, while a lower gamma value prioritizes immediate rewards.
+        #returns = self.gae.calculate_returns(reward, terminated)
 
         # Estimate value function V(s) for the current state
         state_value = self.actor_critic.critic(state)
 
+        state_value = state_value.view(-1) # TODO: look into critic-network forward function to improve this
+
         # Estimate value function V(s') for the next state
         next_state_value = self.actor_critic.critic(next_state)
+
+        next_state_value = next_state_value.view(-1) # TODO: look into critic-network forward function to improve this
 
         # Calculate Q-value estimates for the current and next state-action pairs
         q_value = self.actor_critic.critic.evaluate(state, action)
 
+        q_value = q_value.view(-1) # TODO: look into critic-network forward function to improve this
+
         # Calculate Q-value estimates for next state-action pairs
         next_q_value = self.actor_critic.critic.evaluate(next_state, next_action)
+
+        next_q_value = next_q_value.view(-1) # TODO: look into critic-network forward function to improve this
+
+        # Calculate the standard Temporal Difference (TD) learning, TD(0),
+        # target Q-value is calculated based on the next state-action pair, using the standard TD target.
+        target_q_value = reward + self.gamma * (1.0 - terminated) * next_state_value
+        #target_q_value = returns + self.gamma * (1.0 - terminated) * next_state_value
+
+        # TD_error = |target Q(s', a') - Q(s, a)|,
+        # where taget Q(s', a') = r + γ * V(s'), used in PER.
+        td_error = abs(target_q_value - q_value)
 
         # The GAE combines the immediate advantate (one-step TD error) and the estimated future advantages
         # using the GAE parameter (lambda) and the discount factor (gamma).
@@ -176,58 +201,52 @@ class ActorCriticAgent:
         # It combines the immediate advantage (one-step TD error) with the estimated future advantages
         # (through powers of γ * λ) to form a more robust estimate of the advantage function.
         if use_gae:
+            # GAE(t) = target_Q(t) - V(s(t))
+            # Where:
+            #   GAE(t) is the GAE trace for the state-action pair at time step t.
+            #   target_Q(t) is the target-Q value for the state-action pair at time step t.
+            #   V(s(t)) is the estimated value function (state value) for the state s(t).
             # Calculate the advantages using GAE with eligibility trace
             advantage = self.gae.calculate_gae_eligibility_trace(
-                reward, q_value, next_q_value, terminated, normalize=True
+                td_error,
+                terminated,
+                normalize=True
             )
-
-            # The target-Q value can be calculated as follows:
-            #   target_Q(t) = GAE(t) + V(s(t))
-            # Where:
-            #   target_Q(t) is the target-Q value for the state-action pair at time step t.
-            #   GAE(t) is the GAE trace for the state-action pair at time step t.
-            #   V(s(t)) is the estimated value function (state value) for the state s(t).
-            # By using the GAE trace in combination with the estimated value function,
-            # the target-Q value incorporates both the immediate advantage and the estimated future rewards,
-            # leading to more accurate and stable updates for the critic network.
-            target_q_value = advantage + state_value
         else:
-            # Calculate the standard Temporal Differencce (TD) learning, TD(0),
-            # target Q-value is calculated based on the next state-action pair, using the standard TD target.
-            target_q_value = reward + self.gamma * (1.0 - terminated) * next_state_value
-
             # Calculate advantage: A(state, action) = Q(state, action) - V(state), as means for variance reduction.
             # Q(state, action) can be obtained by calling the evaluate method with the given state-action pair as input,
             # and V(state) can be obtained by calling the forward method with just the state as input.
             # Assuming next_state_value and state_value are 1-D tensors of shape [64]
             advantage = target_q_value - state_value
 
-        # TD_error = |target Q(s', a') - Q(s, a)|,
-        # where taget Q(s', a') = r + γ * V(s'), used in PER.
-        td_error = abs(target_q_value - q_value)
-
         # Calculate critic loss, weighted by importance sampling factor
         critic_loss = torch.mean(weight * F.smooth_l1_loss(target_q_value, q_value))
 
-        # Assuming weight is of shape [64]
-        # Reshape weight to [64, 1] to make it broadcastable to action_log_prob
-        weight = weight.view(-1, 1)
+        # Assuming weight is of shape [128]
+        # Expand weight to match the shape of action_log_prob
+        weight = weight.view(-1, 1)  # Reshape weight to have shape [128, 1]
+        num_actions = action.shape[1]
 
         # Now, repeat the weight values along dimension 1 to match the number of actions (3)
-        # This will make weight have shape [64, 3], with the same weight applied to each action in the batch
-        num_actions = action.shape[1]
-        weight = weight.repeat(1, num_actions)
+        # This will make weight have shape [128, 3], with the same weight applied to each action in the batch
+        weight = weight.repeat(1, num_actions)  # Shape: [128, 3]
 
-        # Compute entropy
+        # Calculate the entropy based on next state-action pair
         entropy = next_action_distribution.entropy().mean()
 
         # Calculate actor log-probability
         action_log_prob = action_distribution.log_prob(action)
 
         # Make sure the shape of weight matches the shape of action_log_prob
-        assert (
-            weight.shape == action_log_prob.shape
-        ), "Weight and action_log_prob shape mismatch."
+        assert weight.shape == action_log_prob.shape, "Weight and action_log_prob shape mismatch."
+
+        # Assuming action_log_prob shape: [128, 3] and advantage shape: [128]
+        # Reshape advantage tensor to have the same shape as action_log_prob
+        advantage = advantage.unsqueeze(1)  # Shape: [128, 1]
+        advantage = advantage.repeat(1, num_actions)  # Shape: [128, 3]
+
+        # Make sure the shape of action_log_prob and advantage match
+        assert action_log_prob.shape == advantage.shape, "action_log_prob and advantage shape mismatch."
 
         # Compute the actor loss, taking into account the importance sampling factor for weighting
         actor_loss = -torch.mean(weight * action_log_prob * advantage)
@@ -246,6 +265,15 @@ class ActorCriticAgent:
 
         # Calculate backpropagation
         loss.backward()
+
+        for name, parameter in self.actor_critic.named_parameters():
+            if parameter.grad is not None:
+                # Access the gradient values
+                gradients = parameter.grad.data
+
+                # Log the gradients
+                #print(f"Gradients for {name}: {gradients}")
+                #self.data_logger.update_episode_cumulative_gradients(gradients.item())
 
         # Apply gradient clipping separately for actor and critic networks
         torch.nn.utils.clip_grad_norm_(
@@ -269,6 +297,29 @@ class ActorCriticAgent:
 
         return indices, td_error
 
+    def state_dict(self):
+        info = {
+            "model_state_dict": self.actor_critic.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "actor_policy": self.actor_critic.actor.state_dict(),
+        }
+        return info
+
+    def update_critic(state: torch.Tensor, action: torch.Tensor, target_q_value: torch.Tensor) ->None:
+        """
+        This method updates the parameters of the critic network based on the TD-error or loss between
+        the predicted Q-value  and the target Q-value. It involves computing the gradients
+        and performing backpropagation.
+        """
+        pass
+
+    def update_actor(state: torch.Tensor) -> None:
+        """
+        This method updates the parameters of the actor network using the policy gradient or advantage-based methods.
+        It involves computing the gradients of the actor network's parameters with respect to the action log-probabilities
+        and advantages, and performing backpropagation.
+        """
+        pass
 
 if __name__ == "__main__":
     """CarRacing-v2 Gym environment"""
@@ -319,12 +370,17 @@ if __name__ == "__main__":
     low = torch.from_numpy(action_space.low).to(device)
     high = torch.from_numpy(action_space.high).to(device)
 
+    # Initialize Data logging
+    data_logger = DataLogger()
+    data_logger.initialize_writer()
+
     # Actor-Critic hyperparameters
     gamma = 0.99
     lr = 0.0001
     value_coef = 0.5
     entropy_coef = 0.01
     hidden_dim = 256
+    lr_gamma = 0.1
 
     # Initialize Actor-Critic network
     agent = ActorCriticAgent(
@@ -338,10 +394,13 @@ if __name__ == "__main__":
         value_coef=value_coef,
         entropy_coef=entropy_coef,
         device=device,
+        data_logger=data_logger,
+        lr_step_size=max_episode_steps,
+        lr_gamma=lr_gamma,
     )
 
     # Get state spaces
-    state_ndarray, info = env.reset()
+    state_ndarray, info = env.reset(seed=42)
 
     # Convert next state to shape (batch_size, channe, width, height)
     state = (
@@ -353,10 +412,12 @@ if __name__ == "__main__":
 
     # Set variables
     total_reward = 0.0
+    step_count = 0
     done = False
 
     # This loop constitutes one epoch
     while not done:
+        print(f"Step: {step_count}")
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         # with torch.no_grad():
         # Pass the state through the Actor model to obtain a probability distribution over the actions
@@ -449,16 +510,16 @@ if __name__ == "__main__":
             action_distribution=action_distribution,
             next_action_distribution=next_action_distribution,
             indices=indices,
-            weight=weight,
+            weight=weight
         )
 
         # Update total reward
         total_reward += float(reward.item())
-        print(f"Total reward: {total_reward:.2f}")
+        print(f"\tTotal reward: {total_reward:.2f}")
+        step_count += 1
 
         state = next_state
 
         # Update if the environment is done
         done = terminated or truncated
-        if done:
-            break
+

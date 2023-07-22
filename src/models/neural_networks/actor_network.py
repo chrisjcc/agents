@@ -9,7 +9,7 @@ import torch.optim as optim
 from torch.distributions import Categorical, Normal
 
 # Setting the seed for reproducibility
-torch.manual_seed(0)
+torch.manual_seed(42)
 
 
 # Actor network
@@ -43,7 +43,7 @@ class Actor(nn.Module):
 
         # Fully connected layers for policy approximation (1 batch)
         self.fc_input_dims = self.calculate_conv_output_dims(
-            (1, state_channel, state_dim, state_dim)
+             (state_channel, state_dim, state_dim)
         )
         self.fc1 = nn.Linear(self.fc_input_dims, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
@@ -64,7 +64,7 @@ class Actor(nn.Module):
 
         return int(torch.prod(torch.tensor(dims.size())))
 
-    def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor]:
         """
         Forward pass of the actor network.
         Args:
@@ -74,7 +74,9 @@ class Actor(nn.Module):
         """
 
         # Scale the input state tensor to the appropriate range (e.g., [0, 1] or [-1, 1])
-        state = state / 255.0  # Assuming the original range is [0, 255] for color channels
+        state = (
+            state / 255.0
+        )  # Assuming the original range is [0, 255] for color channels
 
         # Extract features from the state's image
         x = F.relu(self.conv1(state))
@@ -89,14 +91,31 @@ class Actor(nn.Module):
         x = F.relu(self.fc2(x))
 
         # Predict the mean of the normal distribution for selecting an action
-        mean = self.max_action * torch.tanh(self.mean_fc(x))
+        mean_action = self.max_action * torch.tanh(self.mean_fc(x))
 
-        # Predict the standard deviation of the normal distribution for selecting an action
-        std = (
-            F.softplus(self.std_fc(x)) + 1e-5
-        )  # Add a small constant to ensure positivity and numerical stability caused by 'std' being too close to zero.
+        # Predict the standard deviation of the normal distribution for selecting an action.
+        # softplus function is defined as follows: softplus(x) = log(1 + exp(x)).
+        mean_std = F.softplus(self.std_fc(x))
 
-        return mean, std
+        return mean_action, mean_std
+
+    def sample_action(self, state: torch.Tensor) -> Tuple[torch.Tensor, Normal]:
+        """
+        Performs a forward pass using the actor network.
+        :param state: The current state of the agent.
+        :return: A tuple containing the selected action, its distribution and its estimated value.
+        """
+        # Sample action from actor network
+        with torch.no_grad():
+            # Sample an action from the actor network distribution
+            mean_action, mean_std = self.forward(state)
+
+        # Sample an action from the distribution
+        action_distribution = Normal(loc=mean_action, scale=mean_std)
+        action = action_distribution.sample()
+
+        return action, action_distribution
+
 
 
 if __name__ == "__main__":
@@ -158,7 +177,7 @@ if __name__ == "__main__":
     ).to(device)
 
     # Get state spaces
-    state_ndarray, info = env.reset()
+    state_ndarray, info = env.reset(seed=42)
     state = (
         torch.tensor(state_ndarray, dtype=torch.float32)
         .unsqueeze(0)
@@ -168,14 +187,15 @@ if __name__ == "__main__":
 
     # This loop constitutes one epoch
     total_reward = 0.0
-    while True:
+    step_count = 0
+    done = False
+    while not done:
+        print(f"Step: {step_count}")
+
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         with torch.no_grad():
-            action_mean, action_std = actor(state)
-
-            # Select action by subsampling from action space distribution
-            action_distribution = Normal(loc=action_mean, scale=action_std)  # type: ignore
-            action = action_distribution.sample()  # type: ignore
+             # Select action by subsampling from action space distribution
+            action, action_distribution = actor.sample_action(state)
 
             # Rescale, then clip the action to ensure it falls within the bounds of the action space
             clipped_action = torch.clamp(
@@ -194,11 +214,10 @@ if __name__ == "__main__":
         )
 
         total_reward += float(reward)
-        print(f"Total reward: {total_reward:.2f}")
+        print(f"\tTotal reward: {total_reward:.2f}")
 
         state = next_state
+        step_count += 1
 
         # Update if the environment is done
         done = terminated or truncated
-        if done:
-            break
