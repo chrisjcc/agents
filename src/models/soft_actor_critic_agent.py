@@ -148,7 +148,6 @@ class SACAgent:
         next_action_distribution: Any,
         indices: torch.Tensor,
         weight: torch.Tensor,
-        step: int,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Update the weights of the SAC model.
@@ -163,7 +162,6 @@ class SACAgent:
         :param next_action_distribution (Any): The next action distribution.
         :param indices (torch.Tensor): The indices tensor.
         :param weight (torch.Tensor): The weight tensor.
-        :param step (int): The current step.
 
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: A tuple containing the indices and TD errors.

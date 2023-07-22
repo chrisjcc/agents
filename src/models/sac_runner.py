@@ -105,6 +105,7 @@ if __name__ == "__main__":
         agent=agent,
         memory=memory,
         max_episodes=config.num_episodes,
+        max_episode_steps=config.max_episode_steps,
         batch_size=config.batch_size,
         low=low,
         high=high,
