@@ -31,6 +31,7 @@ class ActorCritic(nn.Module):
         hidden_dim: int = 256,
     ) -> None:
         super(ActorCritic, self).__init__()
+
         # Initialize Actor policy
         self.actor = Actor(
             state_dim=state_dim,
@@ -78,11 +79,12 @@ class ActorCritic(nn.Module):
     def evaluate(self, state: torch.Tensor, action: torch.Tensor) -> Any:
         """
         Perform a forward pass using critic network to calculate Q-value(s,a).
+
         :param state: The current state of the agent.
-        :param action: The action take by the agent.
-        :return: A Q-value tuple evaluating the state-action value
+        :param action: The current action take by the agent.
+        :return: A Q-value esimtate given the state-action pair.
         """
-        q_value = self.critic(state, action)
+        q_value = self.critic.evaluate(state, action)
         return q_value
 
 

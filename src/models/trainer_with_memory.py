@@ -6,6 +6,7 @@ import numpy as np
 import torch
 
 from actor_critic_agent import ActorCriticAgent
+from replay_buffer.per import PrioritizedReplayBuffer
 from replay_buffer.replay_buffer import ReplayBuffer
 
 # Setting the seed for reproducibility
@@ -22,7 +23,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         self,
         env: Any,
         agent: ActorCriticAgent,
-        memory: ReplayBuffer,
+        memory: Any,  # ReplayBuffer, #PrioritizedReplayBuffer,
         max_episodes: int,
         low: Any,
         high: Any,
@@ -82,13 +83,14 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         :return: The next state, reward, and whether the episode is done.
         """
         # Sample a batch from the replay buffer
-        state, action, reward, next_state, done = self.memory.sample(self.batch_size)
+        # state, action, reward, next_state, done = self.memory.sample(self.batch_size)
+        state, action, reward, next_state, done, indices, weight = self.memory.sample(
+            self.batch_size
+        )
 
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         # with torch.no_grad():
-        _, action_distribution = self.agent.actor_critic.sample_action(
-            state.squeeze(1)
-        )  # TODO: THINK ABOUT!!
+        _, action_distribution = self.agent.actor_critic.sample_action(state.squeeze(1))
 
         # Obtain mean and std of next action given next state
         next_action, next_action_distribution = self.agent.actor_critic.sample_action(
@@ -110,6 +112,9 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         clipped_next_action = torch.squeeze(clipped_next_action, dim=1)
         done = torch.squeeze(done, dim=1)
 
+        indices = torch.squeeze(indices, dim=1)
+        weight = torch.squeeze(weight, dim=1)
+
         # Update the neural networks
         self.agent.update(
             state,
@@ -120,6 +125,8 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             done,
             action_distribution,
             next_action_distribution,
+            indices,
+            weight,
         )
 
     def train(self) -> None:
@@ -197,7 +204,6 @@ class Trainer:  # responsible for running over the steps and collecting all the 
                 # Pass the state through the Actor model to obtain a probability distribution over the actions
                 action, action_probs = self.agent.actor_critic.sample_action(state)
 
-                # TODO: do I need to rescale and clip the action??
                 # Rescale the action to the range of the action space
                 rescaled_action = ((action + 1) / 2) * (self.high - self.low) + self.low
 
@@ -333,7 +339,8 @@ if __name__ == "__main__":
     )
 
     # Initialize the replay buffer
-    memory = ReplayBuffer(buffer_size=1024)
+    # memory = ReplayBuffer(buffer_size=1024)
+    memory = PrioritizedReplayBuffer(capacity=1024, alpha=0.99)
 
     # Create trainer to train agent
     trainer = Trainer(

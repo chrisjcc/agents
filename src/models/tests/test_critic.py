@@ -1,6 +1,16 @@
+import os
+import sys
 import unittest
 
+import gymnasium as gym
 import torch
+
+# Add the directory containing actor_critic_agent.py to the Python module search path
+module_dir = os.path.dirname(os.path.abspath(__file__))
+actor_critic_agent_dir = os.path.join(
+    module_dir, ".."
+)  # Adjust the relative path if needed
+sys.path.append(actor_critic_agent_dir)
 
 from neural_networks.critic_network import Critic
 
@@ -8,7 +18,7 @@ from neural_networks.critic_network import Critic
 class TestCritic(unittest.TestCase):
     def setUp(self) -> None:
         self.state_dim = 96
-        self.state_channel=3
+        self.state_channel = 3
         self.action_dim = 3
         self.hidden_dim = 64
         self.critic = Critic(

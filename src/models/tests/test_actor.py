@@ -1,6 +1,16 @@
+import os
+import sys
 import unittest
 
+import gymnasium as gym
 import torch
+
+# Add the directory containing actor_critic_agent.py to the Python module search path
+module_dir = os.path.dirname(os.path.abspath(__file__))
+actor_critic_agent_dir = os.path.join(
+    module_dir, ".."
+)  # Adjust the relative path if needed
+sys.path.append(actor_critic_agent_dir)
 
 from neural_networks.actor_network import Actor
 
