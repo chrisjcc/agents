@@ -36,11 +36,11 @@ class Critic(nn.Module):
         # Calculate the input dimension based on the state dimension
         input_dim = state_dim[0] * state_dim[1]
 
-        self.fc1 = nn.Linear(input_dim, hidden_dim)  # for state-value
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)  # for both state-value and Q-value
-        #self.fc3 = nn.Linear(hidden_dim + action_dim, hidden_dim)  # for Q-value
-        self.fc3 = nn.Linear(hidden_dim + 1, hidden_dim)  # for Q-value
-        self.fc4 = nn.Linear(hidden_dim, 1)  # for both state-value and Q-value
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc4 = nn.Linear(hidden_dim, 1)  # for state-value
+        self.fc5 = nn.Linear(hidden_dim, action_dim)  # for Q-value
 
     def forward(self, state: torch.Tensor) -> torch.Tensor:
         """
@@ -53,6 +53,7 @@ class Critic(nn.Module):
         # Propagate through the dense layers
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
 
         state_value = self.fc4(x)
 
@@ -68,19 +69,22 @@ class Critic(nn.Module):
         Returns:
         - A tensor of shape (batch_size,) containing the Q-value of the input state-action pair.
         """
-        # Propagate through the dense layers
+        # Propagate through the first dense layer (for state-value)
         x = F.relu(self.fc1(state))
+
+        # Propagate through the second densor layer (for both state-value and Q-value)
         x = F.relu(self.fc2(x))
 
-        # Using .t() method to transpose
-        action = action.t()  # (128, 1)
-
-        # Concatenate x and action along dimension 0
-        x = torch.cat((x, action), dim=1)
-
-        # Run forward pass through dense layer
+        # Run forward pass through dense layer (for both state-value and Q-value)
         x = F.relu(self.fc3(x))
-        q_value = self.fc4(x)
+
+        # Get Q-values for all actions
+        q_values = self.fc5(x)
+
+        # Use torch.gather to select Q-values based on the action idices
+        # Asuuming action is a tensor of shape (batch_size, action_dim) with indices
+        # in the range [0, num_acxtions]
+        q_value = torch.gather(q_values, dim=1, index=action.long())
 
         return q_value
 
@@ -143,6 +147,7 @@ if __name__ == "__main__":
     # Get action spaces
     action_space = env.action_space
     action_dim = int(action_space.n)
+    print("action dim: ", action_dim)
 
     # Initialize Critic
     critic = Critic(
