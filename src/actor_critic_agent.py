@@ -155,17 +155,10 @@ class ActorCriticAgent:
 
         # Estimate value function V(s) for the current state
         state_value = self.actor_critic.critic(state)
-
         state_value = state_value.view(-1) # TODO: look into critic-network forward function to improve this
-
-        # Estimate value function V(s') for the next state
-        next_state_value = self.actor_critic.critic(next_state)
-
-        next_state_value = next_state_value.view(-1) # TODO: look into critic-network forward function to improve this
 
         # Calculate Q-value estimates for the current and next state-action pairs
         q_value = self.actor_critic.critic.evaluate(state, action)
-
         q_value = q_value.view(-1) # TODO: look into critic-network forward function to improve this
 
         #head_masked = CategoricalMasked(logits=logits_or_qvalues, mask=mask)
@@ -174,7 +167,6 @@ class ActorCriticAgent:
 
         # Calculate Q-value estimates for next state-action pairs
         next_q_value = self.actor_critic.critic.evaluate(next_state, next_action)  ## TODO: even used???
-
         next_q_value = next_q_value.view(-1) # TODO: look into critic-network forward function to improve this
 
         # Use a corrected masking of terminal states Q(s',a) values
@@ -186,15 +178,13 @@ class ActorCriticAgent:
 
         # Calculate the standard Temporal Difference (TD) learning, TD(0),
         # target Q-value is calculated based on the next state-action pair, using the standard TD target.
-        target_q_value = reward + self.gamma * (1.0 - terminated) * next_state_value
-        #target_q_value = returns + self.gamma * (1.0 - terminated) * next_state_value
+        target_Q_value = reward + self.gamma * (1.0 - terminated) * next_q_value
 
         #batch_norm = nn.BatchNorm1d(num_features=1, track_running_stats=False).to(self.device)  # track_running_stats=True (default)
-        #target_q_value = batch_norm(target_q_value.unsqueeze(1)).squeeze(1)  # Add an extra dimension to match the expected input shape of `nn.BatchNorm1d()` and then remove the extra dimension to revert back to the original shape of the target Q-value
+        #target_Q_value = batch_norm(target_Q_value.unsqueeze(1)).squeeze(1)  # Add an extra dimension to match the expected input shape of `nn.BatchNorm1d()` and then remove the extra dimension to revert back to the original shape of the target Q-value
 
-        # TD_error = |target Q(s', a') - Q(s, a)|,
-        # where taget Q(s', a') = r + γ * V(s'), used in PER.
-        td_error = torch.abs(target_q_value - q_value)
+        # TD_error = |target Q(s', a') - Q(s, a)|, where taget Q(s', a') = r + γ * Q(s', a'), used in PER.
+        td_error = torch.abs(target_Q_value - q_value)
 
         # The GAE combines the immediate advantate (one-step TD error) and the estimated future advantages
         # using the GAE parameter (lambda) and the discount factor (gamma).
@@ -212,14 +202,15 @@ class ActorCriticAgent:
         # It combines the immediate advantage (one-step TD error) with the estimated future advantages
         # (through powers of γ * λ) to form a more robust estimate of the advantage function.
         if use_gae:
-            # GAE(t) = target_Q(t) - V(s(t))
+            # GAE(t) = δt(s(t)) - V(s(t))
             # Where:
             #   GAE(t) is the GAE trace for the state-action pair at time step t.
-            #   target_Q(t) is the target-Q value for the state-action pair at time step t.
+            #   δt(s(t)) is r(t) + γ * V(s(t+1)) - V(s(t)) at time step t.
             #   V(s(t)) is the estimated value function (state value) for the state s(t).
             # Calculate the advantages using GAE with eligibility trace
             advantage = self.gae.calculate_gae_eligibility_trace(
-                td_error,
+                reward,
+                state_value,
                 terminated,
                 normalize=True
             )
@@ -227,12 +218,12 @@ class ActorCriticAgent:
             # Calculate advantage: A(state, action) = Q(state, action) - V(state), as means for variance reduction.
             # Q(state, action) can be obtained by calling the evaluate method with the given state-action pair as input,
             # and V(state) can be obtained by calling the forward method with just the state as input.
-            # Assuming next_state_value and state_value are 1-D tensors of shape [64]
-            advantage = target_q_value - state_value
+            # Assuming target_Q_value and state_value are 1-D tensors of shape [64]
+            advantage = target_Q_value - state_value
 
         # Calculate critic loss, weighted by importance sampling factor
         # target size (torch.Size([128, 15, 1])) that is different to the input size (torch.Size([128, 15, 128]))
-        critic_loss = torch.mean(weight * F.smooth_l1_loss(target_q_value, q_value))
+        critic_loss = torch.mean(weight * F.smooth_l1_loss(target_Q_value, q_value))
 
         # Calculate the entropy based on next state-action pair
         entropy = next_action_distribution.entropy().mean()
@@ -305,7 +296,7 @@ class ActorCriticAgent:
         }
         return info
 
-    def update_critic(state: torch.Tensor, action: torch.Tensor, target_q_value: torch.Tensor) ->None:
+    def update_critic(state: torch.Tensor, action: torch.Tensor, td_error: torch.Tensor) ->None:
         """
         This method updates the parameters of the critic network based on the TD-error or loss between
         the predicted Q-value  and the target Q-value. It involves computing the gradients
