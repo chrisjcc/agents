@@ -1,3 +1,5 @@
-.actor import Actor
+.actor_network import Actor
 
-__all__ = ["Actor"]
+__all__ = [
+  "Actor"
+]
