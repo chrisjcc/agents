@@ -1,4 +1,4 @@
-site_name: AAI-RL
+site_name: Agents
 theme:
   name: readthedocs
   highlightjs: true
