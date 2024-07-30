@@ -21,7 +21,9 @@ class PrioritizedReplayBuffer:
         """
         experience = (state, action, rewar, next_state, done)
         self.buffer.append(experience)
-        self.priorities.append(max(self.priorities, default=1.0))
+
+        max_priority = max(self.priorities, default=1.0)
+        self.priorities.append(float(max_priority))
 
         if len(self.priorities) > len(self.buffer):
             self.priorities.popleft()
