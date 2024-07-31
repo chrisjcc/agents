@@ -1,6 +1,8 @@
 # Importing necessary libraries
 from typing import Any, Tuple
 
+import numpy as np
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -53,11 +55,18 @@ class ActorCritic(nn.Module):
         :param state: A pytorch tensor representing the current state.
         :return: Pytorch Tensor representing the Actor network predictions and the Critic network predictions.
         """
+        mean, std = self.actor(state)
 
-        action, action_distribution = self.sample_action(state)
-        state_value = self.critic(state, action)
+        action_dist = Normal(loc=mean, scale=std)
+        # Generates a sample from the distribution using the reparameterization trick.
+        # Supports gradient computation through the sampling process.
+        # The reparameterization trick allows gradients to flow through the sampled values, making the sampling process differentiable.
+        # Used during training when needed to backpropagate through the sampling process, such as in policy gradient methods
+        action = action_dist.rsample()
 
-        return action, action_distribution, state_value
+        q_value = self.critic(state, action)
+
+        return action, action_dist, q_value
 
     def sample_action(self, state: torch.Tensor) -> Tuple[torch.Tensor, Normal]:
         """
@@ -65,27 +74,26 @@ class ActorCritic(nn.Module):
         :param state: The current state of the agent.
         :return: A tuple containing the selected action, its distribution and its estimated value.
         """
-        # Sample action from actor network
+        # We're detaching the sampled action in sample_action to prevent gradients from flowing through it.
         with torch.no_grad():
-            # Choose action using actor network
-            action_mean, action_std = self.actor(state)
+            # Sample action from actor network
+            mean, std = self.actor(state)
 
             # Sample an action from the distribution
-            action_distribution = Normal(loc=action_mean, scale=action_std)  # type: ignore
-            action = action_distribution.sample()  # type: ignore
+            action_dist = Normal(loc=mean, scale=std)  # type: ignore
+            action = action_dist.rsample()  # type: ignore
 
-        return action, action_distribution
+        return action, action_dist
 
-    def evaluate(self, state: torch.Tensor, action: torch.Tensor) -> Any:
-        """
-        Perform a forward pass using critic network to calculate Q-value(s,a).
+    def evaluate(self, state: torch.Tensor, action: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        mean, std = self.actor(state)
 
-        :param state: The current state of the agent.
-        :param action: The current action take by the agent.
-        :return: A Q-value esimtate given the state-action pair.
-        """
-        q_value = self.critic.evaluate(state, action)
-        return q_value
+        action_dist = Normal(loc=mean, scale=std)
+        log_prob = action_dist.log_prob(action).sum(dim=-1)
+
+        q_value = self.critic(state, action)
+
+        return log_prob, q_value, action_dist.entropy().sum(dim=-1)
 
 
 if __name__ == "__main__":
@@ -169,7 +177,7 @@ if __name__ == "__main__":
             )
 
         # Evaluate Q-value of state-action pair
-        q_value = actor_critic.evaluate(state, clipped_action)
+        _, q_value, _ = actor_critic.evaluate(state, clipped_action)
         print(f"Q-value(state,action): {q_value.item():.3f}")
 
         # Take one step in the environment given the agent action
@@ -188,6 +196,8 @@ if __name__ == "__main__":
         reward = (
             torch.tensor(reward_ndarray, dtype=torch.float32).unsqueeze(0).to(device)
         )
+        terminated = torch.tensor(terminated, dtype=torch.float32).unsqueeze(0).to(device)
+        truncated = torch.tensor(truncated, dtype=torch.float32).unsqueeze(0).to(device)
 
         # Obtain mean and std of next action given next state
         next_action, next_action_distribution = actor_critic.sample_action(next_state)
@@ -198,18 +208,23 @@ if __name__ == "__main__":
         )
 
         # Evaluate Q-value of next state-action pair
-        next_q_value = actor_critic.evaluate(next_state, clipped_next_action)
+        _, next_q_value, _ = actor_critic.evaluate(next_state, clipped_next_action)
         print(f"Next Q-value(next_state,next_action): {q_value.item():.3f}")
 
+        # Create an identity tensor with the same shape and device as state_value
+        identity_tensor = torch.ones_like(reward, dtype=torch.float32).to(device)
+
         # Calculate target Q-value
-        target_q_value = reward + gamma * (1 - terminated) * next_q_value
+        target_q_value = reward + gamma * (identity_tensor - terminated) * next_q_value
+
+        # Calculate critic loss
         critic_loss = F.smooth_l1_loss(target_q_value, q_value)
 
         # Calculate advantage
         advantage = target_q_value - q_value
 
         # Compute entropy
-        entropy = torch.mean(next_action_distribution.entropy())  # type: ignore
+        entropy = torch.mean(action_distribution.entropy())  # type: ignore
 
         # Calculate actor loss
         action_log_prob = next_action_distribution.log_prob(clipped_next_action)  # type: ignore
