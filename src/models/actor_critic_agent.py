@@ -204,7 +204,7 @@ class ActorCriticAgent:
 
         # TD_error = |target Q(s', a') - Q(s, a)|,
         # where taget Q(s', a') = r + γ * V(s'), used in PER.
-        td_error = abs(target_q_value - q_value)
+        td_error = abs(target_q_value - q_value).view(-1)
 
         # Calculate critic loss, weighted by importance sampling factor
         critic_loss = torch.mean(weight * F.smooth_l1_loss(target_q_value, q_value))
