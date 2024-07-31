@@ -66,13 +66,9 @@ class Trainer:  # responsible for running over the steps and collecting all the 
 
         # Convert to tensor
         state = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
-        reward = torch.tensor(reward, dtype=torch.float32).unsqueeze(0).to(self.device)
-        terminated = (
-            torch.tensor(terminated, dtype=torch.float32).unsqueeze(0).to(self.device)
-        )
-        truncated = (
-            torch.tensor(truncated, dtype=torch.float32).unsqueeze(0).to(self.device)
-        )
+        reward = torch.tensor(reward, dtype=torch.float32).view(-1, 1).to(self.device)
+        terminated = torch.tensor(terminated, dtype=torch.float32).view(-1, 1).to(self.device)
+        truncated = torch.tensor(truncated, dtype=torch.float32).view(-1, 1).to(self.device)
 
         return state, reward, terminated, truncated
 
@@ -122,10 +118,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             action,
             reward,
             next_state,
-            clipped_next_action,
             done,
-            action_distribution,
-            next_action_distribution,
             indices,
             weight,
             step,
@@ -140,6 +133,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         :return: A list of episode rewards.
         """
         print("Collecting trajectory samples based on random actions.")
+
         # Fill the replay buffer before starting training
         state_ndarray, info = self.env.reset()
 
