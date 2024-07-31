@@ -156,26 +156,20 @@ class ActorCriticAgent:
         # Estimate value function V(s) for the current state
         state_value = self.actor_critic.critic(state)
 
-        state_value = state_value.view(-1) # TODO: look into critic-network forward function to improve this
-
         # Estimate value function V(s') for the next state
         next_state_value = self.actor_critic.critic(next_state)
 
-        next_state_value = next_state_value.view(-1) # TODO: look into critic-network forward function to improve this
-
         # Calculate Q-value estimates for the current and next state-action pairs
-        q_value = self.actor_critic.critic.evaluate(state, action)
-
-        q_value = q_value.view(-1) # TODO: look into critic-network forward function to improve this
+        action = action.unsqueeze(1)  # Now action has shape [1, 1]
+        q_value = self.actor_critic.critic(state, action)
 
         #head_masked = CategoricalMasked(logits=logits_or_qvalues, mask=mask)
         #print(head_masked.probs) # Impossible action are  masked
         #print(head_masked.entropy())
 
         # Calculate Q-value estimates for next state-action pairs
-        next_q_value = self.actor_critic.critic.evaluate(next_state, next_action)  ## TODO: even used???
-
-        next_q_value = next_q_value.view(-1) # TODO: look into critic-network forward function to improve this
+        next_action = next_action.unsqueeze(1)  # Now action has shape [1, 1]
+        next_q_value = self.actor_critic.critic(next_state, next_action)  ## TODO: even used???
 
         # Use a corrected masking of terminal states Q(s',a) values
         #next_q_value = torch.where(
@@ -186,6 +180,8 @@ class ActorCriticAgent:
 
         # Calculate the standard Temporal Difference (TD) learning, TD(0),
         # target Q-value is calculated based on the next state-action pair, using the standard TD target.
+        reward = reward.unsqueeze(1)  # Shape: [128, 1]
+        terminated = terminated.unsqueeze(1)  # Shape: [128, 1]
         target_q_value = reward + self.gamma * (1.0 - terminated) * next_state_value
         #target_q_value = returns + self.gamma * (1.0 - terminated) * next_state_value
 
@@ -194,7 +190,7 @@ class ActorCriticAgent:
 
         # TD_error = |target Q(s', a') - Q(s, a)|,
         # where taget Q(s', a') = r + γ * V(s'), used in PER.
-        td_error = torch.abs(target_q_value - q_value)
+        td_error = torch.abs(target_q_value - q_value).view(-1)
 
         # The GAE combines the immediate advantate (one-step TD error) and the estimated future advantages
         # using the GAE parameter (lambda) and the discount factor (gamma).
@@ -232,20 +228,20 @@ class ActorCriticAgent:
 
         # Calculate critic loss, weighted by importance sampling factor
         # target size (torch.Size([128, 15, 1])) that is different to the input size (torch.Size([128, 15, 128]))
+        weight = weight.unsqueeze(1)  # Shape: [128, 1]
         critic_loss = torch.mean(weight * F.smooth_l1_loss(target_q_value, q_value))
 
         # Calculate the entropy based on next state-action pair
         entropy = next_action_distribution.entropy().mean()
 
         # Calculate actor log-probability
-        action_log_prob = action_distribution.log_prob(action)
+        action_log_prob = action_distribution.log_prob(action).sum(1, keepdim=True)  # Shape: [128, 1]
 
         # Make sure the shape of weight matches the shape of action_log_prob
-        action_log_prob = action_log_prob.squeeze(dim=0)
-
         assert weight.shape == action_log_prob.shape, "Weight and action_log_prob shape mismatch."
 
         # Make sure the shape of action_log_prob and advantage match
+        advantage = advantage.unsqueeze(1)  # Shape: [128, 1]
         assert action_log_prob.shape == advantage.shape, "action_log_prob and advantage shape mismatch."
 
         # Compute the actor loss, taking into account the importance sampling factor for weighting
@@ -379,7 +375,7 @@ if __name__ == "__main__":
     # Get action spaces
     action_space = env.action_space
 
-    action_dim = int(action_space.n)
+    action_dim = 1
 
     # Initialize Data logging
     data_logger = DataLogger()

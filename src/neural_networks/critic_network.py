@@ -36,13 +36,18 @@ class Critic(nn.Module):
         # Calculate the input dimension based on the state dimension
         input_dim = state_dim[0] * state_dim[1]
 
-        self.fc1 = nn.Linear(input_dim, hidden_dim)  # for state-value
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)  # for both state-value and Q-value
-        #self.fc3 = nn.Linear(hidden_dim + action_dim, hidden_dim)  # for Q-value
-        self.fc3 = nn.Linear(hidden_dim + 1, hidden_dim)  # for Q-value
-        self.fc4 = nn.Linear(hidden_dim, 1)  # for both state-value and Q-value
+        # Q-value network
+        self.q_fc1 = nn.Linear(input_dim, hidden_dim)
+        self.q_fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.q_fc3 = nn.Linear(hidden_dim + action_dim, hidden_dim)
+        self.q_fc4 = nn.Linear(hidden_dim, 1)
 
-    def forward(self, state: torch.Tensor) -> torch.Tensor:
+        # State-value network
+        self.v_fc1 = nn.Linear(input_dim, hidden_dim)
+        self.v_fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.v_fc3 = nn.Linear(hidden_dim, 1)
+
+    def forward(self, state: torch.Tensor, action: torch.Tensor = None) -> torch.Tensor:
         """
         Perform a forward pass through the Critic network for state-value estimation.
         Args:
@@ -50,39 +55,30 @@ class Critic(nn.Module):
         Returns:
         - A tensor of shape (batch_size,) containing the estimated value of the input state.
         """
-        # Propagate through the dense layers
-        x = F.relu(self.fc1(state))
-        x = F.relu(self.fc2(x))
+        if action is not None:
+            return self.q_value(state, action)
+        else:
+            return self.state_value(state)
 
-        state_value = self.fc4(x)
-
-        return state_value
-
-    def evaluate(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+    def q_value(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
         """
-        Evaluates the Q-value of a given state-action pair using the critic network.
-        It takes the state and action as inputs and returns the Q-value estimate.
-        Args:
-        - state: A tensor of shape (batch_size, state_dim1, state_dim2)
-        - action: A tensor of shape (batch_size, action_dim)
-        Returns:
-        - A tensor of shape (batch_size,) containing the Q-value of the input state-action pair.
+        Compute Q(s,a)
         """
-        # Propagate through the dense layers
-        x = F.relu(self.fc1(state))
-        x = F.relu(self.fc2(x))
+        x = F.relu(self.q_fc1(state))
+        x = F.relu(self.q_fc2(x))
+        x = torch.cat([x, action], dim=1)
+        x = F.relu(self.q_fc3(x))
 
-        # Using .t() method to transpose
-        action = action.t()  # (128, 1)
+        return self.q_fc4(x)
 
-        # Concatenate x and action along dimension 0
-        x = torch.cat((x, action), dim=1)
+    def state_value(self, state: torch.Tensor) -> torch.Tensor:
+        """
+        Compute V(s)
+        """
+        x = F.relu(self.v_fc1(state))
+        x = F.relu(self.v_fc2(x))
 
-        # Run forward pass through dense layer
-        x = F.relu(self.fc3(x))
-        q_value = self.fc4(x)
-
-        return q_value
+        return self.v_fc3(x)
 
 
 if __name__ == "__main__":
@@ -142,7 +138,7 @@ if __name__ == "__main__":
 
     # Get action spaces
     action_space = env.action_space
-    action_dim = int(action_space.n)
+    action_dim = 1
 
     # Initialize Critic
     critic = Critic(
@@ -157,9 +153,9 @@ if __name__ == "__main__":
     state = torch.tensor(state_ndarray, dtype=torch.float32).to(device)
 
     # Flatten the state tensor to match the expected input dimension
-    state = state.flatten()
-    batch_size = 1
-    state = state.unsqueeze(0).expand(batch_size, -1) # e.g. [batch_size, 75]
+    #state = state.flatten()
+    #batch_size = 1
+    #state = state.unsqueeze(0).expand(batch_size, -1) # e.g. [batch_size, 75]
 
     # This loop constitutes one epoch
     total_reward = 0.0
@@ -168,6 +164,11 @@ if __name__ == "__main__":
 
     while not done:
         print(f"Step: {step_count}")
+
+        # Flatten the state tensor to match the expected input dimension
+        state = state.flatten()
+        batch_size = 1
+        state = state.unsqueeze(0).expand(batch_size, -1) # e.g. [batch_size, 75]
 
         # Sample random action
         action_ndarray = env.action_space.sample()
@@ -178,7 +179,7 @@ if __name__ == "__main__":
 
         # Evaluate Q-value of random state-action pair
         state_value = critic(state)
-        q_value = critic.evaluate(state, action)
+        q_value = critic(state, action)
 
         print(f"\tState-value: {state_value.item():.3f}")
         print(f"\tQ-value: {q_value.item():.3f}")

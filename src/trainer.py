@@ -4,6 +4,7 @@ from typing import Any, List, Tuple
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torch.distributions import Categorical
 
 from configuration_manager import ConfigurationManager
 from checkpoint_manager import CheckpointManager
@@ -115,13 +116,13 @@ class Trainer:  # responsible for running over the steps and collecting all the 
                 # Create a random logits tensor
                 logits = torch.randn(1, self.agent.action_dim)
 
-                # Apply softmax to convert logits into probabilities
-                probs = F.softmax(logits, dim=1)
+                # Create a categorical distribution over the action values
+                action_distribution = Categorical(
+                    logits=logits
+                )
 
-                # Sample an action from a multinomial distribution
-                action = torch.multinomial(probs, num_samples=1)
-                action = torch.squeeze(action)
-                action = torch.unsqueeze(action, dim=0).to(self.device)
+                # Sample an action from the distribution
+                action = action_distribution.sample()
 
                 # Take a step in the environment with the chosen action
                 next_state, reward, terminated, truncated = self.env_step(action)
@@ -202,7 +203,6 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         # Collect experiences and add them to the replay buffer
         buffer_size = self.memory.buffer.maxlen
         self.collect_experiences(buffer_size=buffer_size)
-        self.env.close()  # Close the environment
 
         # Create lists to store episode rewards and reward standard deviations
         episode_rewards = []
@@ -218,12 +218,6 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             # Get state spaces
             state_ndarray, info = self.env.reset()  # Reset the environment
 
-            # Convert next state to shape (batch_size, channel, width, height)
-            state = torch.tensor(state_ndarray, dtype=torch.float32).to(self.device)
-
-            # Flatten the state tensor to match the expected input dimension
-            state = state.flatten()
-
             # Set variables
             episode_cumulative_reward = 0.0
             done = False
@@ -235,8 +229,16 @@ class Trainer:  # responsible for running over the steps and collecting all the 
                 beta = self.beta_scheduler.get_beta(self.step)
                 self.train_step(beta)
 
+                # Convert next state to shape (batch_size, channel, width, height)
+                state = torch.tensor(state_ndarray, dtype=torch.float32).to(self.device)
+
+                # Flatten the state tensor to match the expected input dimension
+                state = state.flatten()
+
                 # Pass the state through the Actor model to obtain a probability distribution over the actions
                 action, action_probs = self.agent.actor_critic.sample_action(state)
+
+                action = action.unsqueeze(0)
 
                 # Take the action in the environment and observe the next state, reward, and done flag
                 next_state, reward, terminated, truncated = self.env_step(
@@ -244,7 +246,6 @@ class Trainer:  # responsible for running over the steps and collecting all the 
                 )
 
                 done = terminated or truncated
-
                 self.memory.add(state, action, reward, next_state, done)
 
                 # Accumulate reward for the current episode
@@ -371,7 +372,7 @@ if __name__ == "__main__":
 
     # Get action spaces
     action_space = env.action_space
-    action_dim = int(action_space.n)
+    action_dim = 1
 
     # Initialize Data logging
     data_logger = DataLogger()

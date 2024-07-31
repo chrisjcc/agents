@@ -47,7 +47,17 @@ class ActorCriticModel(nn.Module):
         :param state: The current state of the agent.
         :return: A tuple containing the selected action, its distribution and its estimated value.
         """
-        action, action_distribution = self.actor.sample_action(state)
+        # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
+        with torch.no_grad():
+            action_logits = self.actor(state)
+
+            # Create a categorical distribution over the action values
+            action_distribution = Categorical(
+                logits=action_logits
+            )
+
+            # Sample an action from the distribution
+            action = action_distribution.sample()
 
         return action, action_distribution
 
@@ -55,8 +65,7 @@ class ActorCriticModel(nn.Module):
         """
         Performs a forward pass using the critic network
         """
-        #with torch.no_grad():
-        q_value = self.critic.evaluate(state, action)
+        q_value = self.critic(state, action)
 
         return q_value
 
@@ -116,7 +125,7 @@ if __name__ == "__main__":
 
     # Get action spaces
     action_space = env.action_space
-    action_dim = int(action_space.n)
+    action_dim = 1
 
     # Actor-Critic hyperparameters
     gamma = 0.99
@@ -151,12 +160,11 @@ if __name__ == "__main__":
     while not done:
         print(f"Step: {step_count}")
 
-        # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
-        with torch.no_grad():
-            # Obtain mean and std action given state
-            action, action_distribution = actor_critic.sample_action(state)
+        # Obtain mean and std action given state
+        action, action_distribution = actor_critic.sample_action(state)
 
         # Evaluate Q-value of state-action pair
+        action = action.unsqueeze(1)  # Now action has shape [1, 1]
         q_value = actor_critic.evaluate(state, action)
 
         # Take one step in the environment given the agent action
@@ -177,6 +185,7 @@ if __name__ == "__main__":
         next_action, next_action_distribution = actor_critic.sample_action(next_state)
 
         # Evaluate Q-value of next state-action pair
+        next_action = next_action.unsqueeze(1)  # Now action has shape [1, 1]
         next_q_value = actor_critic.evaluate(next_state, next_action)
 
         # Calculate target Q-value
@@ -187,7 +196,7 @@ if __name__ == "__main__":
         advantage = target_q_value - q_value
 
         # Compute entropy
-        entropy = torch.mean(next_action_distribution.entropy())  # type: ignore
+        entropy = torch.mean(action_distribution.entropy())  # type: ignore
 
         # Calculate actor loss
         action_log_prob = action_distribution.log_prob(action)  # type: ignore

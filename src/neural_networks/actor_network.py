@@ -60,39 +60,6 @@ class Actor(nn.Module):
 
         return action_logits
 
-    def sample_action(self, state: torch.Tensor) -> Tuple[torch.Tensor, Normal]:
-        """
-        Performs a forward pass using the actor network.
-        :param state: The current state of the agent.
-        :return: A tuple containing the selected action, its distribution and its estimated value.
-        """
-        # Sample action from actor network
-        with torch.no_grad():
-            # Sample an action from the actor network distribution
-            action_logits = self.forward(state)
-
-        # Apply softmax to convert logits to probabilities
-        # Add a small constant to ensure positivity and numerical stability
-        # caused by 'std' being too close to zero.
-        #action_probs = F.softmax(action_logits, dim=1) + 1e-5
-
-        # Check the row probability sum to approximiately 1.0
-        #row_sums = action_probs.sum(dim=0)
-        #target_sum = torch.ones_like(row_sums)
-
-        #assert torch.allclose(row_sums, target_sum, rtol=1e-3, atol=1e-5), "Row sums are not approximately 1"
-
-        # Create a categorical distribution over the action values
-        action_distribution = Categorical(
-            logits=action_logits
-            #probs=action_probs
-        )
-
-        # Sample an action from the distribution
-        action = action_distribution.sample()  # e.g. returns tensor(2)
-
-        return action.unsqueeze(0), action_distribution  # TODO: why unsqueeze(0) needed here
-
 
 if __name__ == "__main__":
     """Highway-v0 Gym environment"""
@@ -166,7 +133,7 @@ if __name__ == "__main__":
 
     state = state.flatten()
     batch_size = 1
-    state = state.unsqueeze(0).expand(batch_size, -1) # e.g. [batch_size, 75]
+    state = state.unsqueeze(0).expand(batch_size, -1)  # Create a tensor with shape [batch_size, 75]
 
     # This loop constitutes one epoch
     total_reward = 0.0
@@ -178,8 +145,16 @@ if __name__ == "__main__":
 
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         with torch.no_grad():
-             # Select action by subsampling from action space distribution
-            action, action_distribution = actor.sample_action(state)
+            # Sample an action from the actor network distribution
+            action_logits = actor(state)
+
+            # Create a categorical distribution over the action values
+            action_distribution = Categorical(
+                logits=action_logits
+            )
+
+            # Sample an action from the distribution
+            action = action_distribution.sample()
 
         next_state_ndarray, reward, terminated, truncated, info = env.step(
             action.squeeze().cpu().detach().numpy()

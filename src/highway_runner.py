@@ -80,7 +80,7 @@ if __name__ == "__main__":
     # Get action spaces
     action_space = env.action_space
 
-    action_dim = int(action_space.n)
+    action_dim = 1
 
     # Initialize the Checkpoint, location to store training agent model checkpoint
     checkpoint = CheckpointManager(
