@@ -75,11 +75,13 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         # Take one step in the environment given the agent action
         state, reward, terminated, truncated, info = self.env.step(action)
 
-        # Convert the numpy array to a PyTorch tensor with shape (batch_size, channel, width, height)
-        state = torch.tensor(state, dtype=torch.float32).to(self.device).unsqueeze(0).permute(0, 3, 1, 2)
-        reward = torch.tensor([reward], dtype=torch.float32).to(self.device)
-        terminated = torch.tensor([terminated], dtype=torch.float32).to(self.device)
-        truncated = torch.tensor([truncated], dtype=torch.float32).to(self.device)
+        # Convert to tensor
+        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
+        reward = torch.tensor(reward, dtype=torch.float32).view(-1, 1).to(self.device)
+
+        terminated = torch.tensor(terminated, dtype=torch.float32).view(-1, 1).to(self.device)
+
+        truncated = torch.tensor(truncated, dtype=torch.float32).view(-1, 1).to(self.device)
 
         return state, reward, terminated, truncated
 
@@ -175,10 +177,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             action=action,
             reward=reward,
             next_state=next_state,
-            next_action=clipped_next_action,
             terminated=terminated,
-            action_distribution=action_distribution,
-            next_action_distribution=next_action_distribution,
             indices=indices.to(self.device),
             weight=weight.to(self.device),
         )

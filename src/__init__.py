@@ -1,4 +1,5 @@
 # __init__.py
+from models.neural_networks.actor_network import Actor
 from .actor_critic import ActorCritic
 from .actor_critic_agent import ActorCriticAgent
 from .gae import GAE
@@ -11,6 +12,7 @@ from .data_logger import DataLogger
 from .tests import *
 
 __all__ = [
+    "Actor"
     "ActorCriticAgent",
     "ActorCritic",
     "GAE",
@@ -22,4 +24,3 @@ __all__ = [
     "CheckpointManager",
     "DataLogger",
 ]
-

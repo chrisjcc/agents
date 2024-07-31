@@ -8,6 +8,7 @@ import torch
 from actor_critic_agent import ActorCriticAgent
 from replay_buffer.per import PrioritizedReplayBuffer
 from replay_buffer.replay_buffer import ReplayBuffer
+from data_logger import DataLogger
 
 # Setting the seed for reproducibility
 torch.manual_seed(0)
@@ -65,17 +66,13 @@ class Trainer:  # responsible for running over the steps and collecting all the 
 
         # Convert to tensor
         state = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
-        reward = torch.tensor(reward, dtype=torch.float32).unsqueeze(0).to(self.device)
-        terminated = (
-            torch.tensor(terminated, dtype=torch.float32).unsqueeze(0).to(self.device)
-        )
-        truncated = (
-            torch.tensor(truncated, dtype=torch.float32).unsqueeze(0).to(self.device)
-        )
+        reward = torch.tensor(reward, dtype=torch.float32).view(-1, 1).to(self.device)
+        terminated = torch.tensor(terminated, dtype=torch.float32).view(-1, 1).to(self.device)
+        truncated = torch.tensor(truncated, dtype=torch.float32).view(-1, 1).to(self.device)
 
         return state, reward, terminated, truncated
 
-    def train_step(self):
+    def train_step(self, step: int = 0):
         """
         Run a single training step in the OpenAI Gym environment.
 
@@ -121,12 +118,10 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             action,
             reward,
             next_state,
-            clipped_next_action,
             done,
-            action_distribution,
-            next_action_distribution,
             indices,
             weight,
+            step,
         )
 
     def train(self) -> None:
@@ -138,6 +133,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         :return: A list of episode rewards.
         """
         print("Collecting trajectory samples based on random actions.")
+
         # Fill the replay buffer before starting training
         state_ndarray, info = self.env.reset()
 
@@ -199,7 +195,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
 
             while not done:
                 # Update model parameters using TD error
-                self.train_step()
+                self.train_step(step)
 
                 # Pass the state through the Actor model to obtain a probability distribution over the actions
                 action, action_probs = self.agent.actor_critic.sample_action(state)
@@ -313,6 +309,10 @@ if __name__ == "__main__":
     low = torch.from_numpy(action_space.low).to(device)
     high = torch.from_numpy(action_space.high).to(device)
 
+    # Initialize Data logging
+    data_logger = DataLogger()
+    data_logger.initialize_writer()
+
     # Actor-Critic hyperparameters
     gamma = 0.99
     lr = 0.0001
@@ -333,8 +333,10 @@ if __name__ == "__main__":
         hidden_dim=hidden_dim,
         gamma=gamma,
         lr=lr,
+        lr_step_size=max_episode_steps,
         value_coef=value_coef,
         entropy_coef=entropy_coef,
+        data_logger=data_logger,
         device=device,
     )
 

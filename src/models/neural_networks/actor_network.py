@@ -37,32 +37,26 @@ class Actor(nn.Module):
         """
         super(Actor, self).__init__()
         # Convolutional layers to extract features from the state's image
-        self.conv1 = nn.Conv2d(state_channel, 32, kernel_size=3, stride=2, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
+        self.conv1 = nn.Conv2d(state_channel, 32, kernel_size=3, stride=2)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=2)
 
-        # Fully connected layers for policy approximation (1 batch)
-        self.fc_input_dims = self.calculate_conv_output_dims(
-             (state_channel, state_dim, state_dim)
-        )
-        self.fc1 = nn.Linear(self.fc_input_dims, hidden_dim)
+        # Calculate the size of flattened features
+        self.fc_input_dim = self._get_conv_output(state_dim, state_channel)
+
+        self.fc1 = nn.Linear(self.fc_input_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
 
-        self.mean_fc = nn.Linear(hidden_dim, action_dim)
-        self.std_fc = nn.Linear(hidden_dim, action_dim)
+        self.fc_mean = nn.Linear(hidden_dim, action_dim)
+        self.fc_std = nn.Linear(hidden_dim, action_dim)
 
         self.max_action = max_action
 
-    def calculate_conv_output_dims(
-        self,
-        input_dims: Tuple[int, int, int, int],
-    ) -> int:
-        state = torch.zeros(*input_dims)
-        dims = self.conv1(state)
-        dims = self.conv2(dims)
-        dims = self.conv3(dims)
+    def _get_conv_output(self, state_dim, state_channel):
+        input_tensor = torch.zeros(1, state_channel, state_dim, state_dim)
+        output_tensor = self.conv3(self.conv2(self.conv1(input_tensor)))
 
-        return int(torch.prod(torch.tensor(dims.size())))
+        return int(np.prod(output_tensor.shape))
 
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor]:
         """
@@ -74,9 +68,8 @@ class Actor(nn.Module):
         """
 
         # Scale the input state tensor to the appropriate range (e.g., [0, 1] or [-1, 1])
-        state = (
-            state / 255.0
-        )  # Assuming the original range is [0, 255] for color channels
+        # Assuming the original range is [0, 255] for color channels
+        state = state.div(255.0)  # To ensure this is not an in-place operation
 
         # Extract features from the state's image
         x = F.relu(self.conv1(state))
@@ -84,37 +77,19 @@ class Actor(nn.Module):
         x = F.relu(self.conv3(x))
 
         # Flatten the 3D features tensor to make it suitable for feed-forward layers
-        x = x.reshape(x.size(0), -1)
+        x = x.view(x.size(0), -1)
 
         # Propagate through the dense layers
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
 
         # Predict the mean of the normal distribution for selecting an action
-        mean_action = self.max_action * torch.tanh(self.mean_fc(x))
+        mean = self.max_action * torch.tanh(self.fc_mean(x))
 
-        # Predict the standard deviation of the normal distribution for selecting an action.
-        # softplus function is defined as follows: softplus(x) = log(1 + exp(x)).
-        mean_std = F.softplus(self.std_fc(x))
-
-        return mean_action, mean_std
-
-    def sample_action(self, state: torch.Tensor) -> Tuple[torch.Tensor, Normal]:
-        """
-        Performs a forward pass using the actor network.
-        :param state: The current state of the agent.
-        :return: A tuple containing the selected action, its distribution and its estimated value.
-        """
-        # Sample action from actor network
-        with torch.no_grad():
-            # Sample an action from the actor network distribution
-            mean_action, mean_std = self.forward(state)
-
-        # Sample an action from the distribution
-        action_distribution = Normal(loc=mean_action, scale=mean_std)
-        action = action_distribution.sample()
-
-        return action, action_distribution
+        # Predict the standard deviation of the normal distribution for selecting an action
+        # Add a small constant to ensure positivity and numerical stability caused by 'std' being too close to zero.
+        std = F.softplus(self.fc_std(x))
+        std = std.add(1e-5) # Ensure no in-place operations
 
 
 
