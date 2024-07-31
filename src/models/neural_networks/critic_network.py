@@ -22,42 +22,36 @@ class Critic(nn.Module):
         :param hidden_dim: The number of hidden units in the neural networks for actor and critic.
         """
         super(Critic, self).__init__()
-        self.conv1 = nn.Conv2d(state_channel, 32, kernel_size=3, stride=2, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
+        self.conv1 = nn.Conv2d(state_channel, 32, kernel_size=3, stride=2)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=2)
 
-        # Fully connected layers for policy approximation (1 batch)
-        self.fc_input_dims = self.calculate_conv_output_dims(
-            (1, state_channel, state_dim, state_dim)
-        )
-        self.fc0 = nn.Linear(self.fc_input_dims + action_dim, hidden_dim)  # for Q-value
-        # self.fc1 = nn.Linear(action_dim, hidden_dim)  # for critic
-        self.fc1 = nn.Linear(self.fc_input_dims, hidden_dim)  # for critic
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)  # for Q-value
-        self.fc3 = nn.Linear(hidden_dim, 1)  # for critic
+        # Calculate the size of flattened features
+        self.fc_input_dim = self._get_conv_output(state_dim, state_channel)
 
-    def calculate_conv_output_dims(
-        self,
-        input_dims: Tuple[int, int, int, int],
-    ) -> int:
-        state = torch.zeros(*input_dims)
-        dims = self.conv1(state)
-        dims = self.conv2(dims)
-        dims = self.conv3(dims)
+        self.fc1 = nn.Linear(self.fc_input_dim + action_dim, hidden_dim)  # for Q-value
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, 1)
 
-        return int(torch.prod(torch.tensor(dims.size())))
+    def _get_conv_output(self, state_dim, state_channel):
+        input_tensor = torch.zeros(1, state_channel, state_dim, state_dim)
+        output_tensor = self.conv3(self.conv2(self.conv1(input_tensor)))
 
-    def forward(self, state: torch.Tensor) -> torch.Tensor:
+        return int(np.prod(output_tensor.shape))
+
+    def forward(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
         """
         Perform a forward pass through the Critic network, given an input state.
         Args:
         - state: A tensor of shape (batch_size, state_channel, height, width)
+        - action: A tensor of shape (batch_size, 1)
         Returns:
         - A tensor of shape (batch_size,) containing the Q-value of the input state.
         """
 
         # Scale the input state tensor to the appropriate range (e.g., [0, 1] or [-1, 1])
-        state = state / 255.0  # Assuming the original range is [0, 255] for color channels
+        # Assuming the original range is [0, 255] for color channels
+        state = state.div(255.0)  # To ensure this is not an in-place operation
 
         # Extract features from the state's image
         x = F.relu(self.conv1(state))
@@ -65,43 +59,15 @@ class Critic(nn.Module):
         x = F.relu(self.conv3(x))
 
         # Flatten the 3D features tensor to make it suitable for feed-forward layers
-        x = x.reshape(x.size(0), -1)
+        x = x.view(x.size(0), -1)
+
+        x = torch.cat([x, action], dim=1)
 
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        q_value = self.fc3(x)
 
-        return x
-
-    def evaluate(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
-        """
-        Evaluate the Q-value of a given state-action pair.
-        Args:
-        - state: A tensor of shape (batch_size, state_channel, height, width)
-        - action: A tensor of shape (batch_size, action_dim)
-        Returns:
-        - A tensor of shape (batch_size,) containing the Q-value of the input state-action pair.
-        """
-
-        # Scale the input state tensor to the appropriate range (e.g., [0, 1] or [-1, 1])
-        state = state / 255.0  # Assuming the original range is [0, 255] for color channels
-
-        # Extract features from the state's image
-        x = F.relu(self.conv1(state))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-
-        # Flatten the 3D features tensor to make it suitable for feed-forward layers
-        x = x.reshape(x.size(0), -1)
-
-        x = torch.cat([x, action], dim=1)  # concatenate action and feature tensors
-
-        # x = F.relu(self.fc1(x))
-        x = F.relu(self.fc0(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-
-        return x
+        return q_value
 
 
 if __name__ == "__main__":
@@ -177,10 +143,8 @@ if __name__ == "__main__":
         )
 
         # Evaluate Q-value of random state-action pair
-        q_value = critic.evaluate(state, action)
-        state_value = critic(state)
+        q_value = critic(state, action)
         print(f"Q-value: {q_value.item():.3f}")
-        print(f"State-value: {state_value.item():.3f}")
 
         # Take a step in the environment given sampled action
         next_state_ndarray, reward, terminated, truncated, info = env.step(
