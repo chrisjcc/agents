@@ -97,4 +97,23 @@ python -m unittest tests/test_actor_critic_agent.py
 python -m unittest tests/test_trainer_with_memory.py
 ```
 
+## Generate Doxygen Documentation
+To generate the documentation for this project using Doxygen, follow these steps:
+
+### Prerequisites
+Make sure Doxygen is installed on your local machine. You can install it using the following commands:
+
+- **Ubuntu:**
+  ```bash
+  sudo apt-get install doxygen
+- **macOS:**
+  ```bash
+  brew install doxygen
+
+### Generate Documentation
+1. Navigate to the root directory of your project where the Doxyfile is located
+2. Run the Doxygen command with your Doxyfile to generate the documentation:
+```bash
+doxygen Doxyfile
+3. The generated HTML files can be found in the directory specified by the OUTPUT_DIRECTORY setting in the Doxyfile (typically docs/html).
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
