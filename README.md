@@ -116,4 +116,5 @@ Make sure Doxygen is installed on your local machine. You can install it using t
 ```bash
 doxygen Doxyfile
 3. The generated HTML files can be found in the directory specified by the OUTPUT_DIRECTORY setting in the Doxyfile (typically docs/html).
+
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
