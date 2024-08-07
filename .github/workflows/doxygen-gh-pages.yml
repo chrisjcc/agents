@@ -21,6 +21,12 @@ jobs:
       - name: Generate Doxygen Documentation
         run: doxygen Doxyfile
 
+      - name: Create directory if it does not exist
+        run: mkdir -p docs/html
+
+      - name: Create .nojekyll file
+        run: touch docs/html/.nojekyll
+
       - name: Deploy to GitHub Pages
         uses: DenverCoder1/doxygen-github-pages-action@v1.3.0
         with:
