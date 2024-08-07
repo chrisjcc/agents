@@ -38,7 +38,10 @@ class GAE:
 
         for t in reversed(range(rewards.shape[0])):
             td_errors = rewards[t] + self.gamma * next_values[t] * (1 - dones[t]) - values[t]
+            
+            # Formula: gae = δ + γλ(1−dones[t])gae
             gae = td_errors + self.gamma * self.lambda_ * (1 - dones[t]) * gae
+            
             advantages[t] = gae
 
         if normalize:
