@@ -10,7 +10,7 @@ class GAE:
         """
         Initializes the GAE object.
         :param gamma: The discount factor for future rewards.
-        :param lambda_: The GAE parameter, controlling the trade-off between bias and variance in advantage estimation.
+        :param lambda_: The GAE parameter controls the trade-off between bias and variance in advantage estimation.
         """
         self.gamma = gamma
         self.lambda_ = lambda_
@@ -36,8 +36,8 @@ class GAE:
         gae = 0.0
 
         for t in reversed(range(rewards.shape[0])):
-            delta = rewards[t] + self.gamma * next_values[t] * (1 - dones[t]) - values[t]
-            gae = delta + self.gamma * self.lambda_ * (1 - dones[t]) * gae
+            td_errors = rewards[t] + self.gamma * next_values[t] * (1 - dones[t]) - values[t]
+            gae = td_errors + self.gamma * self.lambda_ * (1 - dones[t]) * gae
             advantages[t] = gae
 
         if normalize:
