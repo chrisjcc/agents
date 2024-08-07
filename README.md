@@ -106,10 +106,12 @@ Make sure Doxygen is installed on your local machine. You can install it using t
 - **Ubuntu:**
   ```bash
   sudo apt-get install doxygen
+  sudo apt-get install graphviz
   ```
 - **macOS:**
   ```bash
   brew install doxygen
+  brew install graphviz
   ```
 
 ### Generate Documentation
