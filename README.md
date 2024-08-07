@@ -1,3 +1,5 @@
+[github pages link](https://chrisjcc.github.io/agents/)
+
 # Development of simulated traffic driver agents
 This project aims to develop a simulated traffic driver agent using a combination of imitation learning and reinforcement learning techniques. The simulated agent will be trained to navigate through a virtual city while obeying traffic laws and avoiding collisions with other vehicles and pedestrians.
 
