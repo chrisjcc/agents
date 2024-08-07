@@ -7,17 +7,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.distributions import Categorical, Normal
-
 from neural_networks.actor_network import Actor
 from neural_networks.critic_network import Critic
+from torch.distributions import Categorical, Normal
 
 # Setting the seed for reproducibility
-torch.manual_seed(0)
+torch.manual_seed(42)
 
 
 # Define the ActorCritic architecture using the Actor and Critic network
-class ActorCritic(nn.Module):
+class ActorCriticModel(nn.Module):
     """
     The ActorCritic class defines the complete actor-critic architecture.
     It consists of an Actor and a Critic neural network.
@@ -32,7 +31,7 @@ class ActorCritic(nn.Module):
         device: Any,
         hidden_dim: int = 256,
     ) -> None:
-        super(ActorCritic, self).__init__()
+        super(ActorCriticModel, self).__init__()
 
         # Initialize Actor policy
         self.actor = Actor(
@@ -141,7 +140,7 @@ if __name__ == "__main__":
     entropy_coef = 0.01
 
     # Initialize Actor-Critic network
-    actor_critic = ActorCritic(
+    actor_critic = ActorCriticModel(
         state_dim=state_dim,
         state_channel=state_channel,
         action_dim=action_dim,
@@ -153,7 +152,7 @@ if __name__ == "__main__":
     actor_critic_optimizer = optim.Adam(actor_critic.parameters(), lr=lr)
 
     # Get state spaces
-    state_ndarray, info = env.reset()
+    state_ndarray, info = env.reset(seed=42)
 
     # Convert state to shape (batch_size, channel, wdith, hight)
     state = (
@@ -165,7 +164,11 @@ if __name__ == "__main__":
 
     # This loop constitutes one epoch
     total_reward = 0.0
-    while True:
+    step_count = 0
+    done = False
+    while not done:
+        print(f"Step: {step_count}")
+
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         with torch.no_grad():
             # Obtain mean and std action given state
@@ -227,7 +230,7 @@ if __name__ == "__main__":
         entropy = torch.mean(action_distribution.entropy())  # type: ignore
 
         # Calculate actor loss
-        action_log_prob = next_action_distribution.log_prob(clipped_next_action)  # type: ignore
+        action_log_prob = action_distribution.log_prob(clipped_action)  # type: ignore
         actor_loss = -torch.mean(action_log_prob * advantage)
 
         # Calculate total loss
@@ -247,12 +250,15 @@ if __name__ == "__main__":
         # Apply update rule to neural network weights
         actor_critic_optimizer.step()
 
-        state = next_state
-
         total_reward += float(reward)
-        print(f"Total reward: {total_reward:.2f}")
+        step_count += 1
+
+        # Print Reward and Q-values
+        print(f"\tTotal reward: {total_reward:.2f}")
+        print(f"\tQ-value(state,action): {q_value.item():.3f}")
+        print(f"\tNext Q-value(next_state,next_action): {next_q_value.item():.3f}")
+
+        state = next_state
 
         # Update if the environment is done
         done = terminated or truncated
-        if done:
-            break

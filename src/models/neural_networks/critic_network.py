@@ -1,9 +1,13 @@
+# Importing necessary libraries
 from typing import Any, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+# Setting the seed for reproducibility
+torch.manual_seed(42)
 
 
 class Critic(nn.Module):
@@ -15,7 +19,13 @@ class Critic(nn.Module):
         hidden_dim: int = 256,
     ) -> None:
         """
-        Initializes the Critic network architecture.
+        Initializes the Critic network architecture. We employ a Separate Critic Networks approach.
+        In this approach, separate Critic networks are used to estimate the value function V(s) and the action-value function Q(s, a).
+        Each network has its own set of parameters and is trained independently. As opposed to a Shared Network with Two Heads.
+        In this approach, a shared neural network is used with two output heads, one for estimating V(s)
+        and the other for estimating Q(s, a). The network shares some or all of its underlying layers,
+        allowing for shared feature representations.
+
         :param state_dim: The number of dimensions in the state space.
         :param state_channel: The number of dimension in the state channel (e.g. RGB).
         :param action_dim: The number of dimensions in the action space.
@@ -41,7 +51,7 @@ class Critic(nn.Module):
 
     def forward(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
         """
-        Perform a forward pass through the Critic network, given an input state.
+        Perform a forward pass through the critic network and return the estimated state-value of the input state.
         Args:
         - state: A tensor of shape (batch_size, state_channel, height, width)
         - action: A tensor of shape (batch_size, 1)
@@ -117,13 +127,16 @@ if __name__ == "__main__":
 
     # Initialize Critic
     critic = Critic(
-        state_dim=state_dim, state_channel=state_channel, action_dim=action_dim
+        state_dim=state_dim,
+        state_channel=state_channel,
+        action_dim=action_dim
     ).to(device)
 
     # Get state spaces
-    state_ndarray, info = env.reset()
+    state_ndarray, info = env.reset(seed=42)
 
-    # Convert state numpy to tensor from shape [batch_size, height, width, channels] to [batch_size, channels, height, width]
+    # Convert state numpy to tensor from shape
+    # [batch_size, height, width, channels] to [batch_size, channels, height, width]
     state = (
         torch.tensor(state_ndarray, dtype=torch.float32)
         .unsqueeze(0)
@@ -133,14 +146,20 @@ if __name__ == "__main__":
 
     # This loop constitutes one epoch
     total_reward = 0.0
-    while True:
+    step_count = 0
+    done = False
+
+    while not done:
+        print(f"Step: {step_count}")
+
         # Sample random action
         action_ndarray = env.action_space.sample()
 
         # Convert from numpy to torch tensors, and send to device
-        action = (
-            torch.tensor(action_ndarray, dtype=torch.float32).unsqueeze(0).to(device)
-        )
+        action = torch.tensor(
+            action_ndarray,
+            dtype=torch.float32
+        ).unsqueeze(0).to(device)
 
         # Evaluate Q-value of random state-action pair
         q_value = critic(state, action)
@@ -158,12 +177,15 @@ if __name__ == "__main__":
             .permute(0, 3, 1, 2)
         )
 
+        # Evaluate Q-value of random state-action pair
+        next_state_value = critic(next_state)
+        print(f"\tNext state-value: {next_state_value.item():.3f}")
+
         total_reward += float(reward)
-        print(f"Total reward: {total_reward:.2f}")
+        print(f"\tTotal reward: {total_reward:.2f}")
 
         state = next_state
+        step_count += 1
 
         # Update if the environment is done
         done = terminated or truncated
-        if done:
-            break
