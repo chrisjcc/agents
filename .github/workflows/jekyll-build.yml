@@ -3,6 +3,8 @@ name: Build and Deploy Jekyll Site
 on:
   workflow_run:
     workflows: ["Doxygen GitHub Pages Deploy Action"]
+    branches:
+      - gh-pages
     types:
       - completed
 
