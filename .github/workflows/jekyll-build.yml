@@ -28,7 +28,7 @@ jobs:
 
       - name: List Available Artifacts (Debug)
         run: |
-          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          curl -s -H "Authorization: token ${{ secrets.CUSTOM_TOKEN }}" \
           https://api.github.com/repos/${{ github.repository }}/actions/runs/10304161409/artifacts
 
       - name: Download Doxygen Documentation
@@ -46,5 +46,5 @@ jobs:
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.CUSTOM_TOKEN }}
           publish_dir: ./_site
