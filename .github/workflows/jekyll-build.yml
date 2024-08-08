@@ -23,11 +23,17 @@ jobs:
           gem install bundler -v 2.4.22
           bundle install
 
-      - name: Build site
+      - name: Download Doxygen Documentation
+        uses: actions/download-artifact@v3
+        with:
+          name: doxygen-docs
+          path: docs/html
+
+      - name: Build Jekyll site
         run: bundle exec jekyll build
 
       - name: Move Doxygen Documentation
-        run: mv docs/html _site/docs
+        run: mv docs/html _site/
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3

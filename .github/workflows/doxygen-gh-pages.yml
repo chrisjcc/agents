@@ -21,17 +21,11 @@ jobs:
       - name: Generate Doxygen Documentation
         run: doxygen Doxyfile
 
-      - name: Create directory if it does not exist
-        run: mkdir -p docs/html
-
       - name: Create .nojekyll file
         run: touch docs/html/.nojekyll
 
-      - name: Move Doxygen Documentation
-        run: mv docs/html _site/docs
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Upload Doxygen Documentation as Artifact
+        uses: actions/upload-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./_site
+          name: doxygen-docs
+          path: docs/html
