@@ -27,10 +27,11 @@ jobs:
       - name: Create .nojekyll file
         run: touch docs/html/.nojekyll
 
+      - name: Move Doxygen Documentation
+        run: mv docs/html _site/docs
+
       - name: Deploy to GitHub Pages
-        uses: DenverCoder1/doxygen-github-pages-action@v1.3.0
+        uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: gh-pages
-          folder: docs/html
-          config_file: Doxyfile
+          publish_dir: ./_site
