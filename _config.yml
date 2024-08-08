@@ -1,7 +1,0 @@
-# Build settings
-theme: jekyll-theme-architect
-title: Replicant Drive Simulation homepage
-description: This project aims to develop a simulated traffic driver agent using a combination of imitation learning and reinforcement learning techniques.
-favicon: /favicon.ico
-plugins:
-  - jekyll-readme-index
