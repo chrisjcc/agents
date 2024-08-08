@@ -6,12 +6,6 @@ on:
     types:
       - completed
 
-  push:
-    branches:
-      - main
-
-  workflow_dispatch: # Allows manual triggering of the workflow
-
 jobs:
   build:
     runs-on: ubuntu-latest
