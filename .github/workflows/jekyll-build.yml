@@ -3,18 +3,18 @@ name: Build and Deploy Jekyll Site
 on:
   workflow_run:
     workflows: ["Doxygen GitHub Pages Deploy Action"]
-    branches:
-      - gh-pages
     types:
       - completed
-  workflow_dispatch:  # For manual triggering during debug
+    branches:
+      - gh-pages
+  workflow_dispatch:  # Allows manual triggering of the workflow
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -32,16 +32,16 @@ jobs:
           https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts
 
       - name: Download Doxygen Documentation
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: doxygen-docs
-          path: docs/html
+          path: docs
 
       - name: Build Jekyll site
         run: bundle exec jekyll build
 
       - name: Move Doxygen Documentation
-        run: mv docs/html _site/
+        run: mv docs _site/
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
