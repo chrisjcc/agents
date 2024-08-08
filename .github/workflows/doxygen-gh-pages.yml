@@ -24,6 +24,11 @@ jobs:
       - name: Create .nojekyll file
         run: touch docs/html/.nojekyll
 
+      - name: List Contents of docs/html
+        run: |
+          ls -R docs/html
+        # You can use `ls -R docs/html` for recursive listing or `ls docs/html` for non-recursive listing
+
       - name: Upload Doxygen Documentation as Artifact
         uses: actions/upload-artifact@v3
         with:
