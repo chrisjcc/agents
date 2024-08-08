@@ -39,15 +39,6 @@ jobs:
           bundle install
           bundle exec jekyll build
 
-      - name: Move Doxygen Documentation to _site
-        run: |
-          if [ ! -d "_site" ]; then
-            echo "_site/ directory does not exist."
-            exit 1
-          else
-            mv docs _site/  # Move docs/html to _site/
-          fi
-
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
