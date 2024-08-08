@@ -1,5 +1,3 @@
-name: Build and Deploy Site with Doxygen Docs
-
 on:
   push:
     branches:
@@ -17,8 +15,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y doxygen graphviz
-          gem install bundler -v 2.4.22
-          bundle install
 
       - name: Generate Doxygen Documentation
         run: doxygen Doxyfile
@@ -28,13 +24,20 @@ jobs:
           if [ ! -d "docs/html" ]; then
             echo "docs/html directory does not exist."
             exit 1
-          fi
           else
             touch docs/html/.nojekyll
           fi
 
-      - name: Build Jekyll Site
-        run: bundle exec jekyll build
+      - name: Setup Ruby and Bundler
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '2.7'  # Ensure this matches your Ruby version
+
+      - name: Install Gems and Build Jekyll Site
+        run: |
+          gem install bundler -v 2.4.22
+          bundle install
+          bundle exec jekyll build
 
       - name: Move Doxygen Documentation to _site
         run: |
