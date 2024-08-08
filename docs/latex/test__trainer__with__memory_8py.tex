@@ -1,0 +1,53 @@
+\hypertarget{test__trainer__with__memory_8py}{}\doxysection{src/models/tests/test\+\_\+trainer\+\_\+with\+\_\+memory.py File Reference}
+\label{test__trainer__with__memory_8py}\index{src/models/tests/test\_trainer\_with\_memory.py@{src/models/tests/test\_trainer\_with\_memory.py}}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+import os import sys import unittest import gymnasium as gym import torch \mbox{\hyperlink{test__trainer__with__memory_8py_ad62670d831d5bd4d5e2d259a761a56e6}{module\+\_\+dir}}
+\item 
+import os import sys import unittest import gymnasium as gym import torch \mbox{\hyperlink{test__trainer__with__memory_8py_a5e3de5105053255a6d4c691aa2d82e31}{info}}
+\item 
+import os import sys import unittest import gymnasium as gym import torch \mbox{\hyperlink{test__trainer__with__memory_8py_a49a59ca38acc3799e7cdd3fb108fd284}{reward}}
+\item 
+import os import sys import unittest import gymnasium as gym import torch \mbox{\hyperlink{test__trainer__with__memory_8py_a9a9dc12307f0b7f5fcbd2ffeca54dffa}{terminated}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{test__trainer__with__memory_8py_a5e3de5105053255a6d4c691aa2d82e31}\label{test__trainer__with__memory_8py_a5e3de5105053255a6d4c691aa2d82e31}} 
+\index{test\_trainer\_with\_memory.py@{test\_trainer\_with\_memory.py}!info@{info}}
+\index{info@{info}!test\_trainer\_with\_memory.py@{test\_trainer\_with\_memory.py}}
+\doxysubsubsection{\texorpdfstring{info}{info}}
+{\footnotesize\ttfamily import os import sys from typing import \mbox{\hyperlink{trainer__with__memory_8py_a2ba58e7af42920394d5f1fed1cfb5414}{Any}} import torch import torch nn functional as F from torch import optim from torch distributions import Normal info}
+
+{\bfseries Initial value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{= \textcolor{keyword}{self}.env.reset()}
+\DoxyCodeLine{}
+\DoxyCodeLine{    def test\_env\_step(\textcolor{keyword}{self}):}
+\DoxyCodeLine{        action = (}
+\DoxyCodeLine{            torch.tensor([0.1, 0.2, 0.3], dtype=torch.float32)}
+\DoxyCodeLine{            .unsqueeze(0)}
+\DoxyCodeLine{            .to(self.device)}
+\DoxyCodeLine{        )}
+\DoxyCodeLine{        state}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{test__trainer__with__memory_8py_ad62670d831d5bd4d5e2d259a761a56e6}\label{test__trainer__with__memory_8py_ad62670d831d5bd4d5e2d259a761a56e6}} 
+\index{test\_trainer\_with\_memory.py@{test\_trainer\_with\_memory.py}!module\_dir@{module\_dir}}
+\index{module\_dir@{module\_dir}!test\_trainer\_with\_memory.py@{test\_trainer\_with\_memory.py}}
+\doxysubsubsection{\texorpdfstring{module\_dir}{module\_dir}}
+{\footnotesize\ttfamily import os import sys import unittest import gymnasium as gym import torch module\+\_\+dir}
+
+\mbox{\Hypertarget{test__trainer__with__memory_8py_a49a59ca38acc3799e7cdd3fb108fd284}\label{test__trainer__with__memory_8py_a49a59ca38acc3799e7cdd3fb108fd284}} 
+\index{test\_trainer\_with\_memory.py@{test\_trainer\_with\_memory.py}!reward@{reward}}
+\index{reward@{reward}!test\_trainer\_with\_memory.py@{test\_trainer\_with\_memory.py}}
+\doxysubsubsection{\texorpdfstring{reward}{reward}}
+{\footnotesize\ttfamily import os import sys import unittest import gymnasium as gym import torch reward}
+
+\mbox{\Hypertarget{test__trainer__with__memory_8py_a9a9dc12307f0b7f5fcbd2ffeca54dffa}\label{test__trainer__with__memory_8py_a9a9dc12307f0b7f5fcbd2ffeca54dffa}} 
+\index{test\_trainer\_with\_memory.py@{test\_trainer\_with\_memory.py}!terminated@{terminated}}
+\index{terminated@{terminated}!test\_trainer\_with\_memory.py@{test\_trainer\_with\_memory.py}}
+\doxysubsubsection{\texorpdfstring{terminated}{terminated}}
+{\footnotesize\ttfamily import os import sys import unittest import gymnasium as gym import torch terminated}
+

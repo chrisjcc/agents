@@ -1,0 +1,51 @@
+\hypertarget{test__actor__critic__agent_8py}{}\doxysection{src/models/tests/test\+\_\+actor\+\_\+critic\+\_\+agent.py File Reference}
+\label{test__actor__critic__agent_8py}\index{src/models/tests/test\_actor\_critic\_agent.py@{src/models/tests/test\_actor\_critic\_agent.py}}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+import os import sys import unittest import gymnasium as gym import torch from torch distributions import \mbox{\hyperlink{test__actor__critic__agent_8py_a54df8b7774b8d5ad3993b002b1b48f36}{Categorical}}
+\item 
+import os import sys import unittest import gymnasium as gym import torch from torch distributions import Normal \mbox{\hyperlink{test__actor__critic__agent_8py_a64966a6b1bb47323e24ba4bfa7c95160}{module\+\_\+dir}}
+\item 
+import os import sys import unittest import gymnasium as gym import torch from torch distributions import Normal \mbox{\hyperlink{test__actor__critic__agent_8py_a285bef7336631586de9785feccf65360}{action\+\_\+std}}
+\item 
+import os import sys import unittest import gymnasium as gym import torch from torch distributions import Normal \mbox{\hyperlink{test__actor__critic__agent_8py_afeb78ec68f771cb883706115824a4720}{next\+\_\+action\+\_\+std}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{test__actor__critic__agent_8py_a285bef7336631586de9785feccf65360}\label{test__actor__critic__agent_8py_a285bef7336631586de9785feccf65360}} 
+\index{test\_actor\_critic\_agent.py@{test\_actor\_critic\_agent.py}!action\_std@{action\_std}}
+\index{action\_std@{action\_std}!test\_actor\_critic\_agent.py@{test\_actor\_critic\_agent.py}}
+\doxysubsubsection{\texorpdfstring{action\_std}{action\_std}}
+{\footnotesize\ttfamily import os import sys import unittest import gymnasium as gym import torch from torch distributions import Normal action\+\_\+std}
+
+{\bfseries Initial value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{= \textcolor{keyword}{self}.agent.actor\_critic.actor(state)}
+\DoxyCodeLine{}
+\DoxyCodeLine{}
+\DoxyCodeLine{        \mbox{\hyperlink{test__actor__critic_8py_ad3b1b98a2bcd57e313169ecd1046a5a1}{action\_distribution}} = Normal(loc=action\_mean, scale=\mbox{\hyperlink{test__actor__critic__agent_8py_a285bef7336631586de9785feccf65360}{action\_std}})  \textcolor{preprocessor}{\# type: ignore}}
+\DoxyCodeLine{}
+\DoxyCodeLine{}
+\DoxyCodeLine{        next\_action\_mean}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{test__actor__critic__agent_8py_a54df8b7774b8d5ad3993b002b1b48f36}\label{test__actor__critic__agent_8py_a54df8b7774b8d5ad3993b002b1b48f36}} 
+\index{test\_actor\_critic\_agent.py@{test\_actor\_critic\_agent.py}!Categorical@{Categorical}}
+\index{Categorical@{Categorical}!test\_actor\_critic\_agent.py@{test\_actor\_critic\_agent.py}}
+\doxysubsubsection{\texorpdfstring{Categorical}{Categorical}}
+{\footnotesize\ttfamily import os import sys import unittest import gymnasium as gym import torch from torch distributions import Categorical}
+
+\mbox{\Hypertarget{test__actor__critic__agent_8py_a64966a6b1bb47323e24ba4bfa7c95160}\label{test__actor__critic__agent_8py_a64966a6b1bb47323e24ba4bfa7c95160}} 
+\index{test\_actor\_critic\_agent.py@{test\_actor\_critic\_agent.py}!module\_dir@{module\_dir}}
+\index{module\_dir@{module\_dir}!test\_actor\_critic\_agent.py@{test\_actor\_critic\_agent.py}}
+\doxysubsubsection{\texorpdfstring{module\_dir}{module\_dir}}
+{\footnotesize\ttfamily import os import sys import unittest import gymnasium as gym import torch from torch distributions import Normal module\+\_\+dir}
+
+\mbox{\Hypertarget{test__actor__critic__agent_8py_afeb78ec68f771cb883706115824a4720}\label{test__actor__critic__agent_8py_afeb78ec68f771cb883706115824a4720}} 
+\index{test\_actor\_critic\_agent.py@{test\_actor\_critic\_agent.py}!next\_action\_std@{next\_action\_std}}
+\index{next\_action\_std@{next\_action\_std}!test\_actor\_critic\_agent.py@{test\_actor\_critic\_agent.py}}
+\doxysubsubsection{\texorpdfstring{next\_action\_std}{next\_action\_std}}
+{\footnotesize\ttfamily import os import sys import unittest import gymnasium as gym import torch from torch distributions import Normal next\+\_\+action\+\_\+std}
+

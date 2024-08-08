@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link rel="stylesheet" href="/assets/css/style.css?v=" media="screen" type="text/css">
+    <link rel="stylesheet" href="/assets/css/print.css" media="print" type="text/css">
+
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <![endif]-->
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Replicant Drive Simulation | Replicant Drive Simulation homepage</title>
+<meta name="generator" content="Jekyll v4.3.3" />
+<meta property="og:title" content="Replicant Drive Simulation" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="This project aims to develop a simulated traffic driver agent using a combination of imitation learning and reinforcement learning techniques." />
+<meta property="og:description" content="This project aims to develop a simulated traffic driver agent using a combination of imitation learning and reinforcement learning techniques." />
+<meta property="og:site_name" content="Replicant Drive Simulation homepage" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Replicant Drive Simulation" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"This project aims to develop a simulated traffic driver agent using a combination of imitation learning and reinforcement learning techniques.","headline":"Replicant Drive Simulation","url":"/README.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+
+  <body>
+    <header>
+      <div class="inner">
+        <a href="/">
+          <h1>Replicant Drive Simulation homepage</h1>
+        </a>
+        <h2>This project aims to develop a simulated traffic driver agent using a combination of imitation learning and reinforcement learning techniques.</h2>
+        
+        
+      </div>
+    </header>
+
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h1 id="development-of-simulated-traffic-driver-agents">Development of simulated traffic driver agents</h1>
+<p>This project aims to develop a simulated traffic driver agent using a combination of imitation learning and reinforcement learning techniques. The simulated agent will be trained to navigate through a virtual city while obeying traffic laws and avoiding collisions with other vehicles and pedestrians.</p>
+
+<p><a href="https://chrisjcc.github.io/agents/README.html">github pages link</a></p>
+
+<h2 id="project-overview">Project Overview</h2>
+
+<p>The project will be developed in several stages:</p>
+
+<p><strong>Data Collection:</strong> Collect data from real-world drivers using cameras mounted on their vehicles. This data will be used to train an imitation learning model to mimic the behavior of human drivers.</p>
+
+<p><strong>Imitation Learning:</strong> Train an imitation learning model using the collected data. The model will learn to predict the actions of human drivers based on input data such as vehicle speed, position, and surrounding objects.</p>
+
+<p><strong>Reinforcement Learning:</strong> Train a reinforcement learning model to navigate through a virtual city while obeying traffic laws and avoiding collisions. The model will be rewarded for following traffic laws, staying within speed limits, and avoiding collisions with other vehicles and pedestrians.</p>
+
+<p><strong>Combination:</strong> Combine the imitation learning and reinforcement learning models to create a simulated traffic driver agent. The imitation learning model will provide the initial driving behavior, while the reinforcement learning model will improve the behavior based on feedback from the virtual environment.</p>
+
+<p><strong>Evaluation:</strong> Evaluate the performance of the simulated traffic driver agent in various scenarios, including different weather conditions and traffic densities.</p>
+
+<h2 id="technologies-used">Technologies Used</h2>
+
+<p>The project will be developed using the following technologies:</p>
+
+<ul>
+  <li>Python programming language</li>
+  <li>PyTorch libraries for machine learning</li>
+  <li>Unity game engine for developing the virtual environment</li>
+  <li>CARLA for traffic simulation</li>
+</ul>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>The development of a simulated traffic driver agent using a combination of imitation learning and reinforcement learning techniques is an exciting project that has the potential to revolutionize the way we think about transportation. By training virtual agents to navigate through a virtual city while obeying traffic laws and avoiding collisions, we can create safer, more efficient, and more sustainable transportation systems.</p>
+
+<h1 id="reinforcement-learning">Reinforcement Learning</h1>
+
+<p>Imitation Learning combined with Reinforcement Learning for the development of simulated traffic driver agents.</p>
+
+<h2 id="project-organization">Project Organization</h2>
+
+<div class="language-markdown highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    ├── LICENSE
+    ├── Makefile           &lt;- Makefile with commands like <span class="sb">`make data`</span> or <span class="sb">`make train`</span>
+    ├── README.md          &lt;- The top-level README for developers using this project.
+    ├── data
+    │   ├── external       &lt;- Data from third party sources.
+    │   ├── interim        &lt;- Intermediate data that has been transformed.
+    │   ├── processed      &lt;- The final, canonical data sets for modeling.
+    │   └── raw            &lt;- The original, immutable data dump.
+    │
+    ├── docs               &lt;- A default Sphinx project; see sphinx-doc.org for details
+    │
+    ├── models             &lt;- Trained and serialized models, model predictions, or model summaries
+    │
+    ├── notebooks          &lt;- Jupyter notebooks. Naming convention is a number (for ordering),
+    │                         the creator's initials, and a short <span class="sb">`-`</span> delimited description, e.g.
+    │                         <span class="sb">`1.0-jqp-initial-data-exploration`</span>.
+    │
+    ├── references         &lt;- Data dictionaries, manuals, and all other explanatory materials.
+    │
+    ├── reports            &lt;- Generated analysis as HTML, PDF, LaTeX, etc.
+    │   └── figures        &lt;- Generated graphics and figures to be used in reporting
+    │
+    ├── requirements.txt   &lt;- The requirements file for reproducing the analysis environment, e.g.
+    │                         generated with <span class="sb">`pip freeze &gt; requirements.txt`</span>
+    │
+    ├── setup.py           &lt;- makes project pip installable (pip install -e .) so src can be imported
+    ├── src                &lt;- Source code for use in this project.
+    │   ├── __init__.py    &lt;- Makes src a Python module
+    │   │
+    │   ├── data           &lt;- Scripts to download or generate data
+    │   │   └── make_dataset.py
+    │   │
+    │   ├── features       &lt;- Scripts to turn raw data into features for modeling
+    │   │   └── build_features.py
+    │   │
+    │   ├── models         &lt;- Scripts to train models and then use trained models to make
+    │   │   │                 predictions
+    │   │   ├── predict_model.py
+    │   │   └── train_model.py
+    │   │
+    │   └── visualization  &lt;- Scripts to create exploratory and results oriented visualizations
+    │       └── visualize.py
+    │
+    └── tox.ini            &lt;- tox file with settings for running tox; see tox.readthedocs.io
+</code></pre></div></div>
+
+<h2 id="setup-conda-environment">Setup Conda Environment</h2>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>conda env create -f environment.yml
+</code></pre></div></div>
+
+<h2 id="unit-testing">Unit Testing</h2>
+
+<p>Run the following command to perform unit testing on individual components.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -m unittest tests/test_actor.py
+python -m unittest tests/test_critic.py
+python -m unittest tests/test_actor_critic.py
+python -m unittest tests/test_actor_critic_agent.py 
+python -m unittest tests/test_trainer_with_memory.py
+</code></pre></div></div>
+
+<h2 id="generate-doxygen-documentation">Generate Doxygen Documentation</h2>
+
+<p>To generate the documentation for this project using Doxygen, follow these steps:</p>
+
+<h3 id="prerequisites">Prerequisites</h3>
+
+<p>Make sure Doxygen is installed on your local machine. You can install it using the following commands:</p>
+
+<ul>
+  <li><strong>Ubuntu:</strong>
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>apt-get <span class="nb">install </span>doxygen
+<span class="nb">sudo </span>apt-get <span class="nb">install </span>graphviz
+</code></pre></div>    </div>
+  </li>
+  <li><strong>macOS:</strong>
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>brew <span class="nb">install </span>doxygen
+brew <span class="nb">install </span>graphviz
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<h3 id="generate-documentation">Generate Documentation</h3>
+
+<ol>
+  <li>Navigate to the root directory of your project where the Doxyfile is located</li>
+  <li>Run the Doxygen command with your Doxyfile to generate the documentation:</li>
+</ol>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>doxygen Doxyfile
+</code></pre></div></div>
+
+<ol>
+  <li>The generated HTML files can be found in the directory specified by the OUTPUT_DIRECTORY setting in the Doxyfile (typically docs/html).</li>
+</ol>
+
+<p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
+
+        </section>
+
+        <aside id="sidebar">
+          
+
+          
+
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a>.</p>
+        </aside>
+      </div>
+    </div>
+
+  </body>
+</html>

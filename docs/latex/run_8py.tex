@@ -1,0 +1,95 @@
+\hypertarget{run_8py}{}\doxysection{src/utils/run.py File Reference}
+\label{run_8py}\index{src/utils/run.py@{src/utils/run.py}}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+import os import sys from typing import \mbox{\hyperlink{trainer__with__memory_8py_a2ba58e7af42920394d5f1fed1cfb5414}{Any}} import torch import torch nn functional as F from torch import optim from torch distributions import Normal \mbox{\hyperlink{run_8py_a2a656a6e6a2447171f78e346461e4826}{parent\+\_\+dir}}
+\item 
+import os import sys from typing import \mbox{\hyperlink{trainer__with__memory_8py_a2ba58e7af42920394d5f1fed1cfb5414}{Any}} import torch import torch nn functional as F from torch import optim from torch distributions import Normal \mbox{\hyperlink{run_8py_a5e3de5105053255a6d4c691aa2d82e31}{info}}
+\item 
+import os import sys from typing import \mbox{\hyperlink{trainer__with__memory_8py_a2ba58e7af42920394d5f1fed1cfb5414}{Any}} import torch import torch nn functional as F from torch import optim from torch distributions import Normal \mbox{\hyperlink{run_8py_a44f615dab54b092ef542c748f08ae4d0}{action\+\_\+std}}
+\item 
+import os import sys from typing import \mbox{\hyperlink{trainer__with__memory_8py_a2ba58e7af42920394d5f1fed1cfb5414}{Any}} import torch import torch nn functional as F from torch import optim from torch distributions import Normal \mbox{\hyperlink{run_8py_a594b47ef0e309ae909e91f27716e0c2c}{reward}}
+\item 
+import os import sys from typing import \mbox{\hyperlink{trainer__with__memory_8py_a2ba58e7af42920394d5f1fed1cfb5414}{Any}} import torch import torch nn functional as F from torch import optim from torch distributions import Normal \mbox{\hyperlink{run_8py_aef40f6488876b9b6595c9e400bf225b6}{terminated}}
+\item 
+import os import sys from typing import \mbox{\hyperlink{trainer__with__memory_8py_a2ba58e7af42920394d5f1fed1cfb5414}{Any}} import torch import torch nn functional as F from torch import optim from torch distributions import Normal \mbox{\hyperlink{run_8py_ac44791a09b9c86c1e771894f24cbc715}{truncated}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{run_8py_a44f615dab54b092ef542c748f08ae4d0}\label{run_8py_a44f615dab54b092ef542c748f08ae4d0}} 
+\index{run.py@{run.py}!action\_std@{action\_std}}
+\index{action\_std@{action\_std}!run.py@{run.py}}
+\doxysubsubsection{\texorpdfstring{action\_std}{action\_std}}
+{\footnotesize\ttfamily import os import sys from typing import \mbox{\hyperlink{trainer__with__memory_8py_a2ba58e7af42920394d5f1fed1cfb5414}{Any}} import torch import torch nn functional as F from torch import optim from torch distributions import Normal action\+\_\+std}
+
+{\bfseries Initial value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{= actor(state\_tensor)}
+\DoxyCodeLine{}
+\DoxyCodeLine{}
+\DoxyCodeLine{            \mbox{\hyperlink{test__actor__critic_8py_ad3b1b98a2bcd57e313169ecd1046a5a1}{action\_distribution}} = Normal(loc=action\_mean, scale=\mbox{\hyperlink{run_8py_a44f615dab54b092ef542c748f08ae4d0}{action\_std}})  \textcolor{preprocessor}{\# type: ignore}}
+\DoxyCodeLine{            action\_tensor = \mbox{\hyperlink{test__actor__critic_8py_ad3b1b98a2bcd57e313169ecd1046a5a1}{action\_distribution}}.sample()  \# type: ignore}
+\DoxyCodeLine{}
+\DoxyCodeLine{}
+\DoxyCodeLine{}
+\DoxyCodeLine{            clipped\_action = torch.clamp(}
+\DoxyCodeLine{            (((action\_tensor + 1) / 2) * (high -\/ low) + low), }
+\DoxyCodeLine{                low, high}
+\DoxyCodeLine{            ).to(device)}
+\DoxyCodeLine{}
+\DoxyCodeLine{}
+\DoxyCodeLine{            q\_value = critic(state\_tensor, clipped\_action)}
+\DoxyCodeLine{}
+\DoxyCodeLine{}
+\DoxyCodeLine{            action = clipped\_action.squeeze().cpu().detach().numpy()}
+\DoxyCodeLine{}
+\DoxyCodeLine{}
+\DoxyCodeLine{            next\_state}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{run_8py_a5e3de5105053255a6d4c691aa2d82e31}\label{run_8py_a5e3de5105053255a6d4c691aa2d82e31}} 
+\index{run.py@{run.py}!info@{info}}
+\index{info@{info}!run.py@{run.py}}
+\doxysubsubsection{\texorpdfstring{info}{info}}
+{\footnotesize\ttfamily import os import sys from typing import \mbox{\hyperlink{trainer__with__memory_8py_a2ba58e7af42920394d5f1fed1cfb5414}{Any}} import torch import torch nn functional as F from torch import optim from torch distributions import Normal info}
+
+{\bfseries Initial value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{= env.reset(seed=42)}
+\DoxyCodeLine{        state\_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)}
+\DoxyCodeLine{}
+\DoxyCodeLine{        episode\_reward = 0.0}
+\DoxyCodeLine{        done = False}
+\DoxyCodeLine{}
+\DoxyCodeLine{        \textcolor{keywordflow}{while} not done:}
+\DoxyCodeLine{}
+\DoxyCodeLine{}
+\DoxyCodeLine{            action\_mean}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{run_8py_a2a656a6e6a2447171f78e346461e4826}\label{run_8py_a2a656a6e6a2447171f78e346461e4826}} 
+\index{run.py@{run.py}!parent\_dir@{parent\_dir}}
+\index{parent\_dir@{parent\_dir}!run.py@{run.py}}
+\doxysubsubsection{\texorpdfstring{parent\_dir}{parent\_dir}}
+{\footnotesize\ttfamily import os import sys from typing import \mbox{\hyperlink{trainer__with__memory_8py_a2ba58e7af42920394d5f1fed1cfb5414}{Any}} import torch import torch nn functional as F from torch import optim from torch distributions import Normal parent\+\_\+dir}
+
+\mbox{\Hypertarget{run_8py_a594b47ef0e309ae909e91f27716e0c2c}\label{run_8py_a594b47ef0e309ae909e91f27716e0c2c}} 
+\index{run.py@{run.py}!reward@{reward}}
+\index{reward@{reward}!run.py@{run.py}}
+\doxysubsubsection{\texorpdfstring{reward}{reward}}
+{\footnotesize\ttfamily import os import sys from typing import \mbox{\hyperlink{trainer__with__memory_8py_a2ba58e7af42920394d5f1fed1cfb5414}{Any}} import torch import torch nn functional as F from torch import optim from torch distributions import Normal reward}
+
+\mbox{\Hypertarget{run_8py_aef40f6488876b9b6595c9e400bf225b6}\label{run_8py_aef40f6488876b9b6595c9e400bf225b6}} 
+\index{run.py@{run.py}!terminated@{terminated}}
+\index{terminated@{terminated}!run.py@{run.py}}
+\doxysubsubsection{\texorpdfstring{terminated}{terminated}}
+{\footnotesize\ttfamily import os import sys from typing import \mbox{\hyperlink{trainer__with__memory_8py_a2ba58e7af42920394d5f1fed1cfb5414}{Any}} import torch import torch nn functional as F from torch import optim from torch distributions import Normal terminated}
+
+\mbox{\Hypertarget{run_8py_ac44791a09b9c86c1e771894f24cbc715}\label{run_8py_ac44791a09b9c86c1e771894f24cbc715}} 
+\index{run.py@{run.py}!truncated@{truncated}}
+\index{truncated@{truncated}!run.py@{run.py}}
+\doxysubsubsection{\texorpdfstring{truncated}{truncated}}
+{\footnotesize\ttfamily import os import sys from typing import \mbox{\hyperlink{trainer__with__memory_8py_a2ba58e7af42920394d5f1fed1cfb5414}{Any}} import torch import torch nn functional as F from torch import optim from torch distributions import Normal truncated}
+

@@ -1,0 +1,83 @@
+\hypertarget{test__actor__critic_8py}{}\doxysection{src/models/tests/test\+\_\+actor\+\_\+critic.py File Reference}
+\label{test__actor__critic_8py}\index{src/models/tests/test\_actor\_critic.py@{src/models/tests/test\_actor\_critic.py}}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+import os import sys import unittest import torch import torch nn as nn import torch nn functional as F import torch optim as optim from torch distributions import \mbox{\hyperlink{test__actor__critic_8py_a663f3b4f3bfb6a71e15d900842b7904a}{Categorical}}
+\item 
+import os import sys import unittest import torch import torch nn as nn import torch nn functional as F import torch optim as optim from torch distributions import Normal \mbox{\hyperlink{test__actor__critic_8py_aba62ed8659b51b0b6119b6fefe457957}{module\+\_\+dir}}
+\item 
+import os import sys import unittest import torch import torch nn as nn import torch nn functional as F import torch optim as optim from torch distributions import Normal \mbox{\hyperlink{test__actor__critic_8py_ad3b1b98a2bcd57e313169ecd1046a5a1}{action\+\_\+distribution}}
+\item 
+import os import sys import unittest import torch import torch nn as nn import torch nn functional as F import torch optim as optim from torch distributions import Normal \mbox{\hyperlink{test__actor__critic_8py_a91931b546d85eab4c9a484f37186726a}{state\+\_\+value}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{test__actor__critic_8py_ad3b1b98a2bcd57e313169ecd1046a5a1}\label{test__actor__critic_8py_ad3b1b98a2bcd57e313169ecd1046a5a1}} 
+\index{test\_actor\_critic.py@{test\_actor\_critic.py}!action\_distribution@{action\_distribution}}
+\index{action\_distribution@{action\_distribution}!test\_actor\_critic.py@{test\_actor\_critic.py}}
+\doxysubsubsection{\texorpdfstring{action\_distribution}{action\_distribution}}
+{\footnotesize\ttfamily import os import sys import unittest import torch import torch nn as nn import torch nn functional as F import torch optim as optim from torch distributions import Normal action\+\_\+distribution}
+
+\mbox{\Hypertarget{test__actor__critic_8py_a663f3b4f3bfb6a71e15d900842b7904a}\label{test__actor__critic_8py_a663f3b4f3bfb6a71e15d900842b7904a}} 
+\index{test\_actor\_critic.py@{test\_actor\_critic.py}!Categorical@{Categorical}}
+\index{Categorical@{Categorical}!test\_actor\_critic.py@{test\_actor\_critic.py}}
+\doxysubsubsection{\texorpdfstring{Categorical}{Categorical}}
+{\footnotesize\ttfamily import os import sys import unittest import torch import torch nn as nn import torch nn functional as F import torch optim as optim from torch distributions import Categorical}
+
+\mbox{\Hypertarget{test__actor__critic_8py_aba62ed8659b51b0b6119b6fefe457957}\label{test__actor__critic_8py_aba62ed8659b51b0b6119b6fefe457957}} 
+\index{test\_actor\_critic.py@{test\_actor\_critic.py}!module\_dir@{module\_dir}}
+\index{module\_dir@{module\_dir}!test\_actor\_critic.py@{test\_actor\_critic.py}}
+\doxysubsubsection{\texorpdfstring{module\_dir}{module\_dir}}
+{\footnotesize\ttfamily import os import sys import unittest import torch import torch nn as nn import torch nn functional as F import torch optim as optim from torch distributions import Normal module\+\_\+dir}
+
+{\bfseries Initial value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{= os.path.dirname(os.path.abspath(\_\_file\_\_))}
+\DoxyCodeLine{actor\_critic\_agent\_dir = os.path.join(}
+\DoxyCodeLine{    \mbox{\hyperlink{test__actor__critic_8py_aba62ed8659b51b0b6119b6fefe457957}{module\_dir}}, \textcolor{stringliteral}{"{}.."{}}}
+\DoxyCodeLine{)  \# Adjust the relative path \textcolor{keywordflow}{if} needed}
+\DoxyCodeLine{sys.path.append(actor\_critic\_agent\_dir)}
+\DoxyCodeLine{}
+\DoxyCodeLine{from actor\_critic \textcolor{keyword}{import} ActorCritic}
+\DoxyCodeLine{}
+\DoxyCodeLine{}
+\DoxyCodeLine{\textcolor{keyword}{class }TestActorCritic(unittest.TestCase):}
+\DoxyCodeLine{    def setUp(self):}
+\DoxyCodeLine{        self.state\_dim = 96}
+\DoxyCodeLine{        self.state\_channel = 3}
+\DoxyCodeLine{        self.action\_dim = 3}
+\DoxyCodeLine{        self.max\_action = 1.0}
+\DoxyCodeLine{        self.device = torch.device("{}cpu"{})}
+\DoxyCodeLine{        self.actor\_critic = ActorCritic(}
+\DoxyCodeLine{            state\_dim=self.state\_dim,}
+\DoxyCodeLine{            state\_channel=self.state\_channel,}
+\DoxyCodeLine{            action\_dim=self.action\_dim,}
+\DoxyCodeLine{            max\_action=self.max\_action,}
+\DoxyCodeLine{            device=self.device,}
+\DoxyCodeLine{        )}
+\DoxyCodeLine{}
+\DoxyCodeLine{    def test\_forward(self):}
+\DoxyCodeLine{        state = torch.randn(1, self.state\_channel, self.state\_dim, self.state\_dim)}
+\DoxyCodeLine{        action}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{test__actor__critic_8py_a91931b546d85eab4c9a484f37186726a}\label{test__actor__critic_8py_a91931b546d85eab4c9a484f37186726a}} 
+\index{test\_actor\_critic.py@{test\_actor\_critic.py}!state\_value@{state\_value}}
+\index{state\_value@{state\_value}!test\_actor\_critic.py@{test\_actor\_critic.py}}
+\doxysubsubsection{\texorpdfstring{state\_value}{state\_value}}
+{\footnotesize\ttfamily import os import sys import unittest import torch import torch nn as nn import torch nn functional as F import torch optim as optim from torch distributions import Normal state\+\_\+value}
+
+{\bfseries Initial value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{= \textcolor{keyword}{self}.actor\_critic(state)}
+\DoxyCodeLine{        \textcolor{keyword}{self}.assertEqual(action.shape, (1, \textcolor{keyword}{self}.action\_dim))}
+\DoxyCodeLine{        \textcolor{keyword}{self}.assertIsInstance(\mbox{\hyperlink{test__actor__critic_8py_ad3b1b98a2bcd57e313169ecd1046a5a1}{action\_distribution}}, torch.distributions.Normal)}
+\DoxyCodeLine{        \textcolor{keyword}{self}.assertEqual(\mbox{\hyperlink{test__actor__critic_8py_a91931b546d85eab4c9a484f37186726a}{state\_value}}.shape, (1, 1))}
+\DoxyCodeLine{}
+\DoxyCodeLine{    def test\_sample\_action(\textcolor{keyword}{self}):}
+\DoxyCodeLine{        state = torch.randn(1, self.state\_channel, self.state\_dim, self.state\_dim)}
+\DoxyCodeLine{        action}
+
+\end{DoxyCode}
