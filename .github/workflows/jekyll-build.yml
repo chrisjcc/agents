@@ -1,9 +1,15 @@
 name: Build and Deploy Jekyll Site
 
 on:
+  workflow_run:
+    workflows: ["Doxygen GitHub Pages Deploy Action"]
+    types:
+      - completed
+
   push:
     branches:
       - main
+
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
@@ -23,11 +29,10 @@ jobs:
           gem install bundler -v 2.4.22
           bundle install
 
-      - name: List Available Artifacts
-        run: |
-          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
-          | jq -r '.artifacts[].name'
+      - name: List Available Artifacts (Debug)
+          run: |
+            curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts
 
       - name: Download Doxygen Documentation
         uses: actions/download-artifact@v3
