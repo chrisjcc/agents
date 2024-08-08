@@ -26,6 +26,9 @@ jobs:
       - name: Build site
         run: bundle exec jekyll build
 
+      - name: Move Doxygen Documentation
+        run: mv docs/html _site/docs
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
