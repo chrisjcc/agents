@@ -36,6 +36,8 @@ jobs:
         with:
           name: doxygen-docs
           path: docs
+        env:
+          CUSTOM_TOKEN: ${{ secrets.CUSTOM_TOKEN }}  # Update to use new token
 
       - name: Build Jekyll site
         run: bundle exec jekyll build
@@ -46,5 +48,5 @@ jobs:
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.CUSTOM_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}  # This is likely for page deployment, not artifact download
           publish_dir: ./_site

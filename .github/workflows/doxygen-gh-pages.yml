@@ -38,3 +38,4 @@ jobs:
           path: docs
         env:
           ACTIONS_STEP_DEBUG: true
+          CUSTOM_TOKEN: ${{ secrets.CUSTOM_TOKEN }}
