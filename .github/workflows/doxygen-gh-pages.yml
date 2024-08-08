@@ -24,13 +24,17 @@ jobs:
       - name: Create .nojekyll file
         run: touch docs/html/.nojekyll
 
-      - name: List Contents of docs/html
+      - name: Debug Contents of docs/html
         run: |
+          echo "Listing contents of docs/html:"
           ls -R docs/html
-        # You can use `ls -R docs/html` for recursive listing or `ls docs/html` for non-recursive listing
+          echo "Checking file permissions:"
+          ls -l docs/html
 
       - name: Upload Doxygen Documentation as Artifact
         uses: actions/upload-artifact@v3
         with:
           name: doxygen-docs
-          path: docs/html
+          path: docs
+        env:
+          ACTIONS_STEP_DEBUG: true
