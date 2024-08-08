@@ -26,9 +26,9 @@ jobs:
           bundle install
 
       - name: List Available Artifacts (Debug)
-          run: |
-            curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts
+        run: |
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts
 
       - name: Download Doxygen Documentation
         uses: actions/download-artifact@v3
