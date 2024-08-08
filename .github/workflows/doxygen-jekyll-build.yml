@@ -1,0 +1,52 @@
+name: Build and Deploy Site with Doxygen Docs
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allows manual triggering of the workflow
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Environment and Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+          gem install bundler -v 2.4.22
+          bundle install
+
+      - name: Generate Doxygen Documentation
+        run: doxygen Doxyfile
+
+      - name: Ensure docs/html Directory Exists and Create .nojekyll
+        run: |
+          if [ ! -d "docs/html" ]; then
+            echo "docs/html directory does not exist."
+            exit 1
+          fi
+          else
+            touch docs/html/.nojekyll
+          fi
+
+      - name: Build Jekyll Site
+        run: bundle exec jekyll build
+
+      - name: Move Doxygen Documentation to _site
+        run: |
+          if [ ! -d "_site" ]; then
+            echo "_site/ directory does not exist."
+            exit 1
+          else
+            mv docs _site/  # Move docs/html to _site/
+          fi
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
