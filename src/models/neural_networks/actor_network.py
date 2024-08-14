@@ -9,7 +9,7 @@ import torch.optim as optim
 from torch.distributions import Categorical, Normal
 
 # Setting the seed for reproducibility
-torch.manual_seed(0)
+torch.manual_seed(42)
 
 
 # Actor network
@@ -58,7 +58,7 @@ class Actor(nn.Module):
 
         return int(np.prod(output_tensor.shape))
 
-    def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor]:
         """
         Forward pass of the actor network.
         Args:
@@ -91,7 +91,6 @@ class Actor(nn.Module):
         std = F.softplus(self.fc_std(x))
         std = std.add(1e-5) # Ensure no in-place operations
 
-        return mean, std
 
 
 if __name__ == "__main__":
@@ -153,7 +152,7 @@ if __name__ == "__main__":
     ).to(device)
 
     # Get state spaces
-    state_ndarray, info = env.reset()
+    state_ndarray, info = env.reset(seed=42)
     state = (
         torch.tensor(state_ndarray, dtype=torch.float32)
         .unsqueeze(0)
@@ -163,14 +162,15 @@ if __name__ == "__main__":
 
     # This loop constitutes one epoch
     total_reward = 0.0
-    while True:
+    step_count = 0
+    done = False
+    while not done:
+        print(f"Step: {step_count}")
+
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         with torch.no_grad():
-            action_mean, action_std = actor(state)
-
-            # Select action by subsampling from action space distribution
-            action_distribution = Normal(loc=action_mean, scale=action_std)  # type: ignore
-            action = action_distribution.sample()  # type: ignore
+             # Select action by subsampling from action space distribution
+            action, action_distribution = actor.sample_action(state)
 
             # Rescale, then clip the action to ensure it falls within the bounds of the action space
             clipped_action = torch.clamp(
@@ -189,11 +189,10 @@ if __name__ == "__main__":
         )
 
         total_reward += float(reward)
-        print(f"Total reward: {total_reward:.2f}")
+        print(f"\tTotal reward: {total_reward:.2f}")
 
         state = next_state
+        step_count += 1
 
         # Update if the environment is done
         done = terminated or truncated
-        if done:
-            break

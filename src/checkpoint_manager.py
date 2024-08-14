@@ -89,5 +89,6 @@ class CheckpointManager:
             model_path,                 # where to save the model (can be a file or file-like object)
             export_params=True,         # store the trained parameter weights inside the model file
             input_names=['state'],      # the model's input names
-            output_names=['mean_action', 'mean_std'],  # The model's output names
+            #output_names=['mean_action', 'mean_std'],  # The model's output name(s)
+            output_names=['action'],  # The model's output name(s)
         )

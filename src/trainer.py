@@ -3,12 +3,13 @@ from typing import Any, List, Tuple
 
 import numpy as np
 import torch
+import torch.nn.functional as F
+from torch.distributions import Categorical
 
 from configuration_manager import ConfigurationManager
 from checkpoint_manager import CheckpointManager
 
 from actor_critic_agent import ActorCriticAgent
-from replay_buffer.replay_buffer import ReplayBuffer
 from replay_buffer.per import PrioritizedReplayBuffer
 from replay_buffer.uer import UniformExperienceReplay
 
@@ -33,8 +34,6 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         memory: Any,
         max_episodes: int,
         max_episode_steps: int,
-        low: Any,
-        high: Any,
         device: Any,
         checkpoint: Any,
         data_logger: Any,
@@ -54,8 +53,6 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         self.max_episodes = max_episodes
         self.memory = memory
         self.batch_size = batch_size
-        self.low = low
-        self.high = high
         self.device = device
         self.checkpoint = checkpoint
         self.max_episode_steps = max_episode_steps
@@ -68,20 +65,23 @@ class Trainer:  # responsible for running over the steps and collecting all the 
     def env_step(
         self, action: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Returns state, reward and terminated flag given an action."""
+        """
+        Returns state, reward and terminated flag given an action.
+        """
         # Convert action from torch.Tensor to np.ndarray
         action = action.squeeze().cpu().detach().numpy()
 
         # Take one step in the environment given the agent action
         state, reward, terminated, truncated, info = self.env.step(action)
 
-        # Convert to tensor
-        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
-        reward = torch.tensor(reward, dtype=torch.float32).view(-1, 1).to(self.device)
+        # Convert the numpy array to a PyTorch tensor with shape (batch_size, channel, width, height)
+        state = torch.tensor(state, dtype=torch.float32).to(self.device)
+        reward = torch.tensor([reward], dtype=torch.float32).to(self.device)
+        terminated = torch.tensor([terminated], dtype=torch.float32).to(self.device)
+        truncated = torch.tensor([truncated], dtype=torch.float32).to(self.device)
 
-        terminated = torch.tensor(terminated, dtype=torch.float32).view(-1, 1).to(self.device)
-
-        truncated = torch.tensor(truncated, dtype=torch.float32).view(-1, 1).to(self.device)
+        # Flatten the state tensor to match the expected input dimension
+        state = state.flatten()
 
         return state, reward, terminated, truncated
 
@@ -98,26 +98,31 @@ class Trainer:  # responsible for running over the steps and collecting all the 
         # Check if the replay buffer has enough samples to start training
         while not self.memory.ready(capacity=buffer_size):
             # Fill the replay buffer before starting training
-            state_ndarray, info = self.env.reset(seed=42)
+            state_ndarray, info = self.env.reset()
 
             # Convert the state to a PyTorch tensor with shape (batch_size, channel, width, height)
-            state = torch.tensor(state_ndarray, dtype=torch.float32).to(self.device).unsqueeze(0).permute(0, 3, 1, 2)
+            state = torch.tensor(state_ndarray, dtype=torch.float32).to(self.device)
+
+            # Flatten the state tensor to match the expected input dimension
+            state = state.flatten()
 
             step_count = 0
             done = False
 
+            #while step_count <= self.max_episode_steps:
             while not done:
                 print(f"Step: {step_count}")
 
-                # Get an action from the policy network
-                with torch.no_grad():
-                    action, action_distribution = self.agent.actor_critic.sample_action(state)
+                # Create a random logits tensor
+                logits = torch.randn(1, self.agent.action_dim)
 
-                # Rescale the action to the range of the action space
-                rescaled_action = ((action + 1) / 2) * (self.high - self.low) + self.low
+                # Create a categorical distribution over the action values
+                action_distribution = Categorical(
+                    logits=logits
+                )
 
-                # Clip the rescaledaction to ensure it falls within the bounds of the action space
-                clipped_action = torch.clamp(rescaled_action, self.low, self.high)
+                # Sample an action from the distribution
+                action = action_distribution.sample()
 
                 # Take a step in the environment with the chosen action
                 next_state, reward, terminated, truncated = self.env_step(action)
@@ -125,8 +130,11 @@ class Trainer:  # responsible for running over the steps and collecting all the 
                 # Update if the environment is done
                 done = terminated or truncated
 
+                # Flatten the state tensor to match the expected input dimension
+                next_state = next_state.flatten()
+
                 # Collect experience trajectory in replay buffer
-                self.memory.add(state, clipped_action, reward, next_state, done)
+                self.memory.add(state, action, reward, next_state, done)
 
                 # Update the current state
                 state = next_state
@@ -155,7 +163,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
 
         # Use `with torch.no_grad():` to disable gradient calculations when performing inference.
         # with torch.no_grad():
-        _, action_distribution = self.agent.actor_critic.sample_action(
+        action, action_distribution = self.agent.actor_critic.sample_action(
             state
         )
 
@@ -164,20 +172,16 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             next_state
         )
 
-        # Rescale, then clip the action to ensure it falls within the bounds of the action space
-        clipped_next_action = torch.clamp(
-            (((next_action + 1) / 2) * (self.high - self.low) + self.low),
-            self.low,
-            self.high,
-        )
-
         # Update the neural networks
         indices, td_errors = self.agent.update(
             state=state,
             action=action,
             reward=reward,
             next_state=next_state,
+            next_action=next_action,
             terminated=terminated,
+            action_distribution=action_distribution,
+            next_action_distribution=next_action_distribution,
             indices=indices.to(self.device),
             weight=weight.to(self.device),
         )
@@ -212,38 +216,37 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             rewards_in_episode = []
 
             # Get state spaces
-            state_ndarray, info = self.env.reset()
-
-            # Convert next state to shape (batch_size, channel, width, height)
-            state = torch.tensor(state_ndarray, dtype=torch.float32).to(self.device).unsqueeze(0).permute(0, 3, 1, 2)
+            state_ndarray, info = self.env.reset()  # Reset the environment
 
             # Set variables
             episode_cumulative_reward = 0.0
             done = False
             self.step = 0
 
+            #while self.step <= self.max_episode_steps:
             while not done:
                 # Update model parameters using TD error
                 beta = self.beta_scheduler.get_beta(self.step)
                 self.train_step(beta)
 
+                # Convert next state to shape (batch_size, channel, width, height)
+                state = torch.tensor(state_ndarray, dtype=torch.float32).to(self.device)
+
+                # Flatten the state tensor to match the expected input dimension
+                state = state.flatten()
+
                 # Pass the state through the Actor model to obtain a probability distribution over the actions
                 action, action_probs = self.agent.actor_critic.sample_action(state)
 
-                # Rescale the action to the range of the action space
-                rescaled_action = ((action + 1) / 2) * (self.high - self.low) + self.low
-
-                # Clip the rescaledaction to ensure it falls within the bounds of the action space
-                clipped_action = torch.clamp(rescaled_action, self.low, self.high)
+                action = action.unsqueeze(0)
 
                 # Take the action in the environment and observe the next state, reward, and done flag
                 next_state, reward, terminated, truncated = self.env_step(
-                    clipped_action
+                    action
                 )
 
                 done = terminated or truncated
-
-                self.memory.add(state, clipped_action, reward, next_state, done)
+                self.memory.add(state, action, reward, next_state, done)
 
                 # Accumulate reward for the current episode
                 episode_cumulative_reward += float(reward.item())
@@ -287,6 +290,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
             self.data_logger.log_episode_average_total_loss()
             self.data_logger.log_actor_critic()
             self.data_logger.log_entropy()
+            self.data_logger.log_gradient()
 
             # Update the episode number
             self.data_logger.update_episode_num()
@@ -309,7 +313,7 @@ class Trainer:  # responsible for running over the steps and collecting all the 
 
 
 if __name__ == "__main__":
-    """CarRacing-v2 Gym environment"""
+    """Highway-env-v0 Gym environment"""
     import gymnasium as gym
     import matplotlib.pyplot as plt
 
@@ -317,18 +321,44 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Load the configuration file
-    config = ConfigurationManager("train_config.yaml")
+    config_manager = ConfigurationManager("highway_config.yaml")
 
     # Define the environment
     # Passing continuous=True converts the environment to use continuous action.
     # The continuous action space has 3 actions: [steering, gas, brake].
     env: gym.Env[Any, Any] = gym.make(
-        config.env_name,
-        domain_randomize=config.domain_randomize, #True,
-        continuous=config.continuous, #True,
-        render_mode=config.render_mode, #"human",
-        max_episode_steps=config.max_episode_steps,
+        config_manager.env_name,
+        render_mode=config_manager.render_mode, # "human",
+        max_episode_steps=config_manager.max_episode_steps,
     )
+
+    action_type = "DiscreteMetaAction" #"ContinuousAction" #"DiscreteAction"  # "ContinuousAction"
+
+    config = {
+        "observation": {
+            "type": "Kinematics",
+            "vehicles_count": 15,
+            "features": ["presence", "x", "y", "vx", "vy"],
+            "features_range": {
+                "x": [-100, 100],
+                "y": [-100, 100],
+                "vx": [-20, 20],
+                "vy": [-20, 20]
+            },
+            "absolute": False,
+            "order": "sorted",
+            "normalize": False
+        },
+        "action" :{
+            "type": action_type
+        },
+        "duration": 20,
+        "vehicles_count": 20,
+        "collision_reward": -1,
+        "high_speed_reward": 0.4
+    }
+
+    env.configure(config)
 
     # We first check if state_shape is None. If it is None, we raise a ValueError.
     # Otherwise, we access the first element of state_shape using its index and
@@ -337,26 +367,12 @@ if __name__ == "__main__":
 
     if state_shape is None:
         raise ValueError("Observation space shape is None.")
-    state_dim = int(state_shape[0])
-    state_channel = int(state_shape[2])
+
+    state_dim = (15, 5) #env.observation_space.shape
 
     # Get action spaces
     action_space = env.action_space
-
-    if isinstance(action_space, gym.spaces.Box):
-        action_high = action_space.high
-        action_shape = action_space.shape
-    else:
-        raise ValueError("Action space is not of type Box.")
-    if action_shape is None:
-        raise ValueError("Action space shape is None.")
-
-    action_dim = int(action_shape[0])
-    max_action = int(action_high[0])
-
-    # Convert from nupy to tensor
-    low = torch.from_numpy(action_space.low).to(device)
-    high = torch.from_numpy(action_space.high).to(device)
+    action_dim = 1
 
     # Initialize Data logging
     data_logger = DataLogger()
@@ -364,32 +380,30 @@ if __name__ == "__main__":
 
     # Initialize the replay buffer
     memory = PrioritizedReplayBuffer(
-        capacity=config.replay_buffer_capacity,
-        alpha=config.replay_buffer_alpha,
+        capacity=config_manager.replay_buffer_capacity,
+        alpha=config_manager.replay_buffer_alpha,
     )
 
     # Initialize the Checkpoint object
     checkpoint = CheckpointManager(
-        checkpoint_dir=config.checkpoint_dir,
-        checkpoint_freq=config.checkpoint_freq,
-        num_checkpoints=config.num_checkpoints,
+        checkpoint_dir=config_manager.checkpoint_dir,
+        checkpoint_freq=config_manager.checkpoint_freq,
+        num_checkpoints=config_manager.num_checkpoints,
     )
 
     # Initialize Actor-Critic network
     agent = ActorCriticAgent(
         state_dim=state_dim,
-        state_channel=state_channel,
         action_dim=action_dim,
-        max_action=max_action,
-        hidden_dim=config.hidden_dim,
-        gamma=config.gamma,
-        lr=config.lr,
-        value_coef=config.value_coef,
-        entropy_coef=config.entropy_coef,
+        hidden_dim=config_manager.hidden_dim,
+        gamma=config_manager.gamma,
+        lr=config_manager.lr,
+        value_coef=config_manager.value_coef,
+        entropy_coef=config_manager.entropy_coef,
         device=device,
         data_logger=data_logger,
-        lr_step_size=config.max_episode_steps,
-        lr_gamma=config.lr_gamma,
+        lr_step_size=config_manager.max_episode_steps,
+        lr_gamma=config_manager.lr_gamma,
     )
 
     # Create trainer to train agent
@@ -397,19 +411,13 @@ if __name__ == "__main__":
         env=env,
         agent=agent,
         memory=memory,
-        max_episodes=config.num_episodes,
-        max_episode_steps=config.max_episode_steps,
-        batch_size=config.batch_size,
-        low=low,
-        high=high,
+        max_episodes=config_manager.num_episodes,
+        max_episode_steps=config_manager.max_episode_steps,
+        batch_size=config_manager.batch_size,
         device=device,
         checkpoint=checkpoint,
         data_logger=data_logger,
     )
-
-    # trainer.train()
-    # add this line to close the environment after training
-    # env.close()  # type: ignore
 
     # Train the agent and get the episode rewards and reward standard deviations
     episode_rewards, reward_std_devs = trainer.train()
@@ -428,3 +436,6 @@ if __name__ == "__main__":
     plt.title("Average Reward with Uncertainty Band")
     plt.legend()
     plt.show()
+
+    # Add this line to close the environment after training
+    env.close()  # type: ignore

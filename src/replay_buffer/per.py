@@ -10,21 +10,30 @@ class PrioritizedReplayBuffer:
     def __init__(self, capacity: int, alpha: float):
         self.capacity = capacity
         self.alpha = alpha
-        self.buffer = deque(maxlen=capacity)
+        self.buffer: Deque[
+            Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+        ] = deque(maxlen=capacity)
         self.priorities = deque(maxlen=capacity)
 
-    def add(self, state, action, rewar, next_state, done):
+    def add(
+        self, state, action, reward, next_state, done
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         This code initializes self.priorities to all ones by default,
         and then updates it with the new priority whenever a new experience
         is added. It also makes sure that the length of self.priorities
         is always the same as the length of self.buffer.
         """
-        experience = (state, action, rewar, next_state, done)
+        assert isinstance(state, torch.Tensor)
+        assert isinstance(action, torch.Tensor)
+        assert isinstance(reward, torch.Tensor)
+        assert isinstance(next_state, torch.Tensor)
+        assert isinstance(done, torch.Tensor)
+
+        experience = (state, action, reward, next_state, done)
         self.buffer.append(experience)
 
-        max_priority = max(self.priorities, default=1.0)
-        self.priorities.append(float(max_priority))
+        self.priorities.append(max(self.priorities, default=1.0))
 
         if len(self.priorities) > len(self.buffer):
             self.priorities.popleft()
@@ -34,7 +43,7 @@ class PrioritizedReplayBuffer:
             return None
 
         priorities = torch.tensor(self.priorities, dtype=torch.float32)
-        probs = priorities ** self.alpha
+        probs = priorities**self.alpha
         probs /= probs.sum()
 
         # Check that probs has the same size as self.buffer
@@ -57,6 +66,7 @@ class PrioritizedReplayBuffer:
         # When we use prioritized sampling, experiences with higher priorities are sampled more frequently.
         # This can introduce bias in the learning process because we are not sampling experiences uniformly at random
         # from the replay buffer.
+
         # To correct for this bias, we use the importance weights when calculating the loss during training.
         # The importance weight for each experience is computed as the inverse of its probability of being sampled.
         # By including the importance weights in the loss calculation, we give less weight to experiences that were oversampled
@@ -82,7 +92,7 @@ class PrioritizedReplayBuffer:
         td_errors: torch.Tensor,
         alpha: float = 0.7,
         epsilon: float = 1e-6,
-    )-> None:
+    ) -> None:
         # Ensure indices and td_errors have the same length
         assert len(indices) == len(
             td_errors
@@ -93,7 +103,6 @@ class PrioritizedReplayBuffer:
 
         for idx, priority in zip(indices, priorities):
             self.priorities[idx] = priority
-
 
     def ready(self, capacity: int) -> bool:
         return len(self.buffer) >= self.buffer.maxlen

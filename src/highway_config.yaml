@@ -1,6 +1,7 @@
-env_name: CarRacing-v2
+env_name: highway-fast-v0
+config_dir: None
 num_episodes: 2
-max_episode_steps: 100
+max_episode_steps: 50
 domain_randomize: true
 continuous: true
 render_mode: human

@@ -1,10 +1,10 @@
-# Importing necessary libraries
 import yaml
 from schema import Schema, SchemaError
 
 # Define the schema for the YAML file
 config_schema = Schema({
     "env_name": str,
+    "config_dir": str,
     "max_episode_steps": int,
     "num_episodes": int,
     "domain_randomize": bool,
@@ -40,6 +40,7 @@ class ConfigurationManager:
             print(f"Invalid configuration file: {e}")
 
         self.env_name = config["env_name"]
+        self.config_dir = config["config_dir"]
         self.max_episode_steps = config.get("max_episode_steps", 600)
         self.num_episodes = config.get("num_episodes", 10)
         self.domain_randomize = config.get("domain_randomize", True)
@@ -62,3 +63,4 @@ class ConfigurationManager:
         self.replay_buffer_alpha = config.get("replay_buffer_alpha", 0.5)
     def __repr__(self):
         return f"ConfigurationManager(env_name={self.env_name}, max_episode_steps={self.max_episode_steps}, num_episodes={self.num_episodes}, ...)"
+
