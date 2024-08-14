@@ -43,6 +43,17 @@ class GAE:
             >>> dones = torch.tensor([0.0, 0.0, 0.0, 1.0])
             >>> advantages = gae.calculate_gae_eligibility_trace(rewards, values, next_values, dones)
         """
+        # For non-terminal states, the value of the next state is the value of the current state shifted by one time step.
+        # For the final state, we assume a value of 0.0.
+        if next_values is None:
+            next_values = torch.cat([values[1:], torch.tensor([0.0])])
+        
+        if dones is None:
+            dones = torch.zeros_like(rewards)
+
+        if not all(tensor.shape == rewards.shape for tensor in [values, next_values, dones]):
+            raise ValueError("All input tensors must have the same shape")
+
         # Caculate the temporal difference error, δ.
         td_errors = self.calculate_td_errors(rewards, values, next_values, dones)
 
