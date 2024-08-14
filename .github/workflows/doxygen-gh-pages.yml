@@ -10,9 +10,32 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: DenverCoder1/doxygen-github-pages-action@v1.3.0
+      - name: Checkout repository
+        uses: actions/checkout@v4 
+
+      - name: Set up Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+
+      - name: Generate Doxygen Documentation
+        run: doxygen Doxyfile
+
+      - name: Create .nojekyll file
+        run: touch docs/html/.nojekyll
+
+      - name: Debug Contents of docs/html
+        run: |
+          echo "Listing contents of docs/html:"
+          ls -R docs/html
+          echo "Checking file permissions:"
+          ls -l docs/html
+
+      - name: Upload Doxygen Documentation as Artifact
+        uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: gh-pages
-          folder: docs/html
-          config_file: Doxyfile
+          name: doxygen-docs
+          path: docs
+        env:
+          ACTIONS_STEP_DEBUG: true
+          CUSTOM_TOKEN: ${{ secrets.CUSTOM_TOKEN }}

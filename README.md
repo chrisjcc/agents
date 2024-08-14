@@ -1,7 +1,15 @@
+---
+layout: default
+title: Replicant Drive Simulation
+---
+
 # Development of simulated traffic driver agents
 This project aims to develop a simulated traffic driver agent using a combination of imitation learning and reinforcement learning techniques. The simulated agent will be trained to navigate through a virtual city while obeying traffic laws and avoiding collisions with other vehicles and pedestrians.
 
-# Project Overview
+[github pages link](https://chrisjcc.github.io/agents/README.html)
+
+## Project Overview
+
 The project will be developed in several stages:
 
 **Data Collection:** Collect data from real-world drivers using cameras mounted on their vehicles. This data will be used to train an imitation learning model to mimic the behavior of human drivers.
@@ -14,7 +22,8 @@ The project will be developed in several stages:
 
 **Evaluation:** Evaluate the performance of the simulated traffic driver agent in various scenarios, including different weather conditions and traffic densities.
 
-# Technologies Used
+## Technologies Used
+
 The project will be developed using the following technologies:
 
 - Python programming language
@@ -23,6 +32,7 @@ The project will be developed using the following technologies:
 - CARLA for traffic simulation
 
 ## Conclusion
+
 The development of a simulated traffic driver agent using a combination of imitation learning and reinforcement learning techniques is an exciting project that has the potential to revolutionize the way we think about transportation. By training virtual agents to navigate through a virtual city while obeying traffic laws and avoiding collisions, we can create safer, more efficient, and more sustainable transportation systems.
 
 
@@ -31,9 +41,9 @@ Reinforcement Learning
 
 Imitation Learning combined with Reinforcement Learning for the development of simulated traffic driver agents.
 
-Project Organization
-------------
+## Project Organization
 
+```markdown
     ├── LICENSE
     ├── Makefile           <- Makefile with commands like `make data` or `make train`
     ├── README.md          <- The top-level README for developers using this project.
@@ -78,17 +88,18 @@ Project Organization
     │       └── visualize.py
     │
     └── tox.ini            <- tox file with settings for running tox; see tox.readthedocs.io
-
-
---------
+```
 
 ## Setup Conda Environment
+
 ```
 conda env create -f environment.yml
 ```
 
 ## Unit Testing
+
 Run the following command to perform unit testing on individual components.
+
 ```
 python -m unittest tests/test_actor.py
 python -m unittest tests/test_critic.py
@@ -96,5 +107,35 @@ python -m unittest tests/test_actor_critic.py
 python -m unittest tests/test_actor_critic_agent.py 
 python -m unittest tests/test_trainer_with_memory.py
 ```
+
+## Generate Doxygen Documentation
+
+To generate the documentation for this project using Doxygen, follow these steps:
+
+### Prerequisites
+
+Make sure Doxygen is installed on your local machine. You can install it using the following commands:
+
+- **Ubuntu:**
+  ```bash
+  sudo apt-get install doxygen
+  sudo apt-get install graphviz
+  ```
+- **macOS:**
+  ```bash
+  brew install doxygen
+  brew install graphviz
+  ```
+
+### Generate Documentation
+
+1. Navigate to the root directory of your project where the Doxyfile is located
+2. Run the Doxygen command with your Doxyfile to generate the documentation:
+
+```bash
+doxygen Doxyfile
+```
+
+3. The generated HTML files can be found in the directory specified by the OUTPUT_DIRECTORY setting in the Doxyfile (typically docs/html).
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
