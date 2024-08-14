@@ -3,7 +3,9 @@ import torch
 
 class GAE:
     """
-    Generalized Advantage Estimation (GAE) with eligibility trace.
+    Generalized Advantage Estimation (GAE) with eligibility trace to compute the advantages.
+    GAE allows you to control the trade-off between bias and variance in advantage estimation.
+    (source: https://arxiv.org/abs/1506.02438).
     """
 
     def __init__(self, gamma: float, lambda_: float):
@@ -41,6 +43,7 @@ class GAE:
             >>> dones = torch.tensor([0.0, 0.0, 0.0, 1.0])
             >>> advantages = gae.calculate_gae_eligibility_trace(rewards, values, next_values, dones)
         """
+        # Caculate the temporal difference error, δ.
         td_errors = self.calculate_td_errors(rewards, values, next_values, dones)
 
         if td_errors.shape != dones.shape:
@@ -50,7 +53,7 @@ class GAE:
         gae = 0.0
 
         for t in reversed(range(rewards.shape[0])):
-             # Formula: gae = δ + γλ(1−dones[t])gae
+            # Formula: gae = δ + γλ(1−dones[t])gae
             gae = td_errors[t] + self.gamma * self.lambda_ * (1 - dones[t]) * gae
             advantages[t] = gae
 
@@ -68,7 +71,7 @@ class GAE:
         Calculate the Returns based on the rewards.
 
         :param rewards: Tensor of shape [batch_size] containing rewards.
-        :param dones: Tensor of shape [batch_size] indicating whether the episode is terminated.
+        :param dones: Tensor of shape [batch_size] indicating whether the episode continues (0) or terminates (1).
         :return: Tensor of shape [batch_size] containing the returns.
 
         Example:
